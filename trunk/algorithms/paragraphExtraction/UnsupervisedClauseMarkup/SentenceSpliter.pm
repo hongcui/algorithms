@@ -32,13 +32,13 @@ use locale;
 		get_EOS set_EOS);
 
 $EOS="\001";
-$P = q/[\.!?;:]/;			## PUNCTUATION
+$P = q/[\.!?:;]/;			## PUNCTUATION
 $AP = q/(?:'|"|»|\)|\]|\})?/;	## AFTER PUNCTUATION
 $PAP = $P.$AP;
 $SAP = q/(?:\.|'|"|»|\)|\]|\})?/;
 
 my @PEOPLE = ( 'jr', 'mr', 'mrs', 'ms', 'dr', 'prof', 'sr', "sens?", "reps?", 'gov',
-		"attys?", 'supt',  'det', 'rev' );
+		"attys?", 'supt',  'det', 'rev', 'esq' );
 
 
 my @ARMY = ( 'col','gen', 'lt', 'cmdr', 'adm', 'capt', 'sgt', 'cpl', 'maj' );
@@ -191,7 +191,7 @@ sub remove_false_end_of_sentence {
 	$marked_segment=~s/(['"]$P['"]\s+)$EOS/$1/sg;
 	## fix where abbreviations exist
 	foreach (@ABBREVIATIONS) {
-     $marked_segment=~s/(\b$_$SAP\s)$EOS\s*(?!([A-Z]|\d+-+[a-zA-Z]))/$1/sg;  #replace when not matach [A-Z] or 1-flowered
+     $marked_segment=~s/(\b$_$SAP\s)$EOS\s*(?!([A-Z]|\d+-+[a-zA-Z]))/$1/sg;  #replace when not match [A-Z] or 1-flowered
   }
 
 	foreach (@BOT2) {
