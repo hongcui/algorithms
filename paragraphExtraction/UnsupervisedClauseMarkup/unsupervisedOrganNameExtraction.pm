@@ -1,390 +1,185 @@
-#Nov. 17 2008
-#This version output GraphML for generation of visualization among organs and sub-organs.
-#This version also assemble marked clauses into description documents and dump them to disk
-#This version uses extra parameters
-#This version output raw marked-up clauses with "unknown" tag.
-#Newer development of unsupervised clause markup is done on unsupervisedClauseMarkupBenchmarked.pl
-#The latter implements some additional new or replacement module to achieve ideas discussed in the FNAv19BenchmarkDocumentation.doc 
-
-#Nov 10, 2008 Hong Cui
-#TODO:  Done: de-hypenization for documents (done in java)
-#		2) identify common-substructures such as blades, base, etc. See also 5)
-#	    0) Determine when a syntactic modifier is a type modifier: when "modifier+structure" is the subject of a clause, not a phrase clause.
-#			0.0: need first to identify "type modifier as subjects" : such as inner, outer, basal, etc. /bootstrap/
-#           In v19, 12 of the 100 unique modifiers also are also boundary words, including basal, cauline, pistillate, staminate, bisexaul etc. 
-#           "Modifier + boundary word" pattern can be used to identify such modifiers
-#       1) deal with unknown words: 
-#			make use of word morphology to tag unknown words: oval, suboval, to expand modifiers, boundaries, or structures
-#				Prefixes: "deca", "di", "dodeca", "e", "hexa", "infra", "inter", "macro", "mega", "meso", "micro", "mono", "multi", "ob", "octo", "penta", "poly", "ptero", "quadri", "quinque", "semi", "sub", "syn", "tetra", "tri", "uni", "xero";
-# 				Suffix: "-merous"
-
-#      		make use of word semantics (antonyms) to tag unknown words:  inner vs. outer; staminate vs. pistillate; abaxial vs adaxial;
-
-#		3)"of" clauses:sub-part of part, but not part of sub-part, part of count, clausters of part. May need to look into (information).
-#       3) "and/or" clauses: noun and/or noun, except stentences starting with "and/or"
-
-#"unknown" tagged clauses not starting with a noun phrase:
-#	    4) "ditto" clauses: unknown sentences starting with "boundary words" not followed by organ names before a punctuation mark => ditto
-#       4) "adjective modifier subject" clauses: sentence starting with a "modifier" such as inner followed by a boundry word, infer a structure from context. 
-#		4) phrase clauses: sentence ends with a structure name.
-
-#		5)"common sub-structure" clause: first identify those structures. Then use the context to infer its modifier (sub-part of part)
-
-
-# March 5, 2009
-# changes made for Treatise part H
-# 1) valves =>singular=> valve: different tag 2868 => 2801
-# 2) doit{} patterns [psn][psn], [?b]bn/b[?b]n, ends with n, check pos of words following: different tag 2801 =>2715
-# 3) doit{} process [bbs] pattern: [elongate ventral muscle] field with diductors close 2715=>2622
-
-# March 6, 2009
-# deal with "x with y" in a postprocess module
-# add "no" to stop list.
-
-# March 11, 2009
-# leads stops after a proposition
-# disable adject_subject and common_substructure: 2622=>2425 (discount ditto and and/or tags: 773)
-
-# March 12, 2009
-# add $NUMBERS to stoplist (b words)
-# take andor out of adj-subj bootstrapping to the main bootstrapping (andor 104 => 63, still has problems)
-# in checkWN, take into account $PREFIX, -ed
-# tightened up criteria in [?(b)] [different tags: 766]
-# disable 'fixxwithy'
-
-# Mrach 15, 2009
-# relax/remove 2 "not main role" conditions in doit{}
-
-# March 21, 2009
-# a number of small fixes.
-# markupignore()
-# switch the order of ditto and phraseclause
-# relaxed phraseclause condition
-
-# March 24, 2009
-# finalizeignore: raw mark of markupignore gets finalized in finalizeignore
-# add $CHARACTER characters to b list
-
-# March 26, 2009
-# takes R0, R1, and R2 out of remainnulltag() and put in the new markup subroutine.
-
-# March 28, 2009
-# add commaand()
-
-# March 29, 2009
-# add finalizemodifiers(), to be tested
-
-
-# April 07, 2009
-# modified ?b in doit
-# add adjsverification() : tested
-
-# April 11, 2009
-# fix problems seen in test18
-# addnumbers() to "b" list
-
-#...
-
-
-# April 26, 2009
-# normalize modifiers with and/or/plus
-
-#...
-
-# May 1, 2009
-# add nor to and|or
-
-#...
-
-use lib 'C:\\Docume~1\\hongcui\\Desktop\\WorkFeb2008\\Projects\\workspace\\Unsupervised\\';
+#this version is a simplified version of unsuperviseClauseMarkupBenchmark.pl
+#the only goal the program achieves is extracting organ names with high accuracy (faster speed too)
+#in Nounheuristics, do not extract nounendings such as -tion, -sure.
+#removed all additional modules dealing with adjSubject, compound subject, phrase clause etc.
+package unsupervisedOrganNameExtraction;
+use lib 'C:\\Docume~1\\hongcui\\Desktop\\WordNov2009\\\Description_Extraction\\paragraphExtraction\\UnsupervisedClauseMarkup\\';
 use NounHeuristics;
-use InitialMarkup;
 use SentenceSpliter;
 use ReadFile;
 use strict;
 use DBI;
 
-#perl unsupervised.pl C:\Docume~1\hongcui\Desktop\WorkFeb2008\Projects\fossile fossil
+my $debug = 0;
+my $debugp = 0; #debug pattern
+	my $kb = "knowledgebase";
+	my $taglength = 150;
 
-if(@ARGV != 3) {
-print "\nUnsupervised.pl learns nouns/subjects from a folder of plain text descriptions and outputs the results a database.\n";
-print "\nUsage:\n";
-print "\tperl unsupervised.pl absolute-path-of-source-dir databasename mode[adj or plain]\n";
-print "\tResults will be saved to the database specified \n";
-exit(1);
-}
-
-print stdout "Initialized:\n";
-###########################################################################################
-#########################                                     #############################
-#########################set up global variables              #############################
-###########################################################################################
-
-my $dir = $ARGV[0]."\\";#textfile
-my $db = $ARGV[1];
-my $lm = $ARGV[2];  #learning mode:"adj" or "plain"
-my $defaultgeneraltag = "general";
-
-my $debug = 1;
-my $debugp = 1; #debug pattern
-
-my $kb = "knowledgebase";
-
-my $taglength = 150;
-
-my $host = "localhost";
-my $user = "termsuser";
-my $password = "termspassword";
-my $dbh = DBI->connect("DBI:mysql:host=$host", $user, $password)
-or die DBI->errstr."\n";
-
-my $CHECKEDWORDS = ":"; #leading three words of sentences
-my $N = 3; #$N leading words
-my $SENTID = 0;
-my $DECISIONID = 0;
-my $PROPERNOUNS = "propernouns"; #EOL
-my %WNNUMBER =(); #word->(p|s)
-my %WNSINGULAR = ();#word->singular
-my %WNPOS = ();   #word->POSs
-my %WNPOSRECORDS = ();
-my $NEWDESCRIPTION =""; #record the index of sentences that ends a description
-my %WORDS = ();
-my %PLURALS = ();
-#3/12/09
-#my %NUMBERS = (0, 'zero', 1, 'one', 'first',2, 'two','second', 3, 'three','third', 'thirds',4,'four','fourth','fourths', 5,'five','fifth','fifths', 6,'six','sixth','sixths',7,'seven','seventh','sevenths', 8,'eight','eighths','eighth',9,'nine','ninths','ninth','tenths','tenth');
-#4/22/09
-my $NUMBERS = "zero|one|ones|first|two|second|three|third|thirds|four|fourth|fourths|quarter|five|fifth|fifths|six|sixth|sixths|seven|seventh|sevenths|eight|eighths|eighth|nine|ninths|ninth|tenths|tenth";
-#the following two patterns are used in mySQL rlike
-my $PREFIX ="ab|ad|bi|deca|de|dis|di|dodeca|endo|end|e|hemi|hetero|hexa|homo|infra|inter|ir|macro|mega|meso|micro|mid|mono|multi|ob|octo|over|penta|poly|postero|post|ptero|pseudo|quadri|quinque|semi|sub|sur|syn|tetra|tri|uni|un|xero|[a-z0-9]+_";
-my $SUFFIX ="er|est|fid|form|ish|less|like|ly|merous|most|shaped"; # 3_nerved, )_nerved, dealt with in subroutine
-my $FORBIDDEN ="to|and|or|nor"; #words in this list can not be treated as boundaries "to|a|b" etc.
-my $PRONOUN ="all|each|every|some|few|individual|both|other";
-my $CHARACTER ="lengths|length|lengthed|width|widths|widthed|heights|height|character|characters|distribution|distributions|outline|outlines|profile|profiles|feature|features|form|forms|mechanism|mechanisms|nature|natures|shape|shapes|shaped|size|sizes|sized";#remove growth, for growth line. check 207, 3971
-my $PROPOSITION ="above|across|after|along|around|as|at|before|beneath|between|beyond|by|for|from|in|into|near|of|off|on|onto|out|outside|over|than|throughout|toward|towards|up|upward|with|without";
-my $TAGS = "";
-my $PLENDINGS = "[^aeiou]ies|i|ia|(x|ch|sh)es|ves|ices|ae|s";
-my $CLUSTERSTRINGS = "group|groups|clusters|cluster|arrays|array|series|fascicles|fascicle|pairs|pair|rows|number|numbers|\\d+";
-my $SUBSTRUCTURESTRINGS = "part|parts|area|areas|portion|portions";
+	my $host = "localhost";
+	my $user = "termsuser";
+	my $password = "termspassword";
+	my $dbh = DBI->connect("DBI:mysql:host=$host", $user, $password)
+	or die DBI->errstr."\n";
 	
-my $mptn = "((?:[mbq][,&]*)*(?:m|b|q(?=[pon])))";#grouped #may contain q but not the last m, unless it is followed by a p
-my $nptn = "((?:[nop][,&]*)*[nop])"; #grouped #must present, no q allowed
-my $bptn = "([,;:\\.]*\$|,*[bm]|(?<=[pon]),*q)"; #grouped #when following a p, a b could be a q
-my $SEGANDORPTN = "(?:".$mptn."?".$nptn.")"; #((?:[mq],?)*&?(?:m|q(?=p))?)((?:[np],?)*&?[np])
-my $ANDORPTN = "^(?:".$SEGANDORPTN."[,&]+)*".$SEGANDORPTN.$bptn;
-
-my $IGNOREPTN = "(assignment|resemb[a-z]+|like [A-Z]|similar|differs|differ|revision|genus|family|suborder|species|specimen|order|superfamily|class|known|characters|characteristics|prepared|subphylum|assign[a-z]*|available|nomen dubium|said|topotype|1[5-9][0-9][0-9])";
-	 
-my $stop = $NounHeuristics::STOP;
-
-#prepare database
-my $haskb = kbexists();
-$haskb = 0;
-setupdatabase();
-
-if($haskb){
-	importfromkb();
-}
-
-#read sentences in from disk	
-print stdout "Reading sentences:\n";
-populatesents();
-
-addheuristicsnouns();
-addstopwords();
-addcharacters();#3/24/09
-addnumbers(); #4/11/09
-addclusterstrings(); #4/11/09
-addpropernouns(); #6/2/09
-
-posbysuffix();
-resetcounts();
-###############################################################################
-# bootstrap between %NOUNS and %BDRY on plain text description
-# B: a boundary word, N: a noun or noun *phrase* ?: a unknown word
-# goal: grow %NOUNS and %BDRY + confirm tags
-#
-# decision table: leading three words (@todo: exclude "at the center of xxx")
-# foremost, collect the patterns and find the number of unique instances (I) of "?"
-# deal with the cases with good hints first
-# leave the cases with high uncertainty for the next iteration
-# use the NNP as the tag "flower buds" "basal leaves"
-# with the assumption that "N N N"s are rare, "N N" and "N" are most common
-
-# clues: ?~pl, tag words' POS patterns
-# N <=>B [last N (likely to be a pl) is followed by a B, the first B is proceeded by a N]
-# need to distinguish the two usages of Ns, [1] when used as the main N in a tag e.g. <female flowers>
-# [2] when used to modify another N in a tag <flower buds>
-# if [1] is seen, then <flower> shouldn't be a tag.
-# cases: see *rulebasedlearn*  for heuritics
-# 1  N N N => make "N N N" the tag
-# 2    N B => make "N N" the tag
-# 3    N ? => if I>2 or "N N" is a phrase or N2-pl, ? -> %BDRY and make "N N" the tag
-# 4    B N => make "N1" the tag
-# 5    B B => make N the tag
-# 6    B ? => make N the tag
-# 7    ? N => if I>2 or N1-pl, ? -> %BDRY and make N1 the tag; else @nextiteration
-# 8    ? B => if N-pl, ? -> %BDRY and make N the tag; if I>2 and N1-sg and ?~pl, ? -> %NOUNS and make "N ?" the tag; else @nextiteration
-# 9    ? ? => if N-pl, ? -> %BDRY and make N the tag; if any ?~pl, make up to the ? the tag and that ?->@NOUNS; else @nextiteration
-# 10 B N N => make "B N N" the tag
-# 11   N B => make "B N" the tag
-# 12   N ? => if N-pl, ? -> %BDRY and make "B N" the tag; if ?~pl, make "B N ?" the tag and ?->@NOUNS;else @nextiteration
-# 13   B N => make "B B N" the tag
-# 14   B B => search for the first N and make it the tag
-# 15   B ? => if I>2, ?-> %NOUNS and make "B B N" the tag; else @nextiteration
-# 16   ? N => make "B ? N" the tag
-# 17   ? B => ? -> %NOUNS and make "B1 ?" the tag.
-# 18   ? ? => @nextiteration
-# 19 ? N N => if I>2 or any N-pl, make up to the N the tag and ? ->%BDRY
-# 20   N B => make "? N" the tag
-# 21   N ? => make N the tag and ?2->%BDRY
-# 22   B N => make "? B N" the tag
-# 23   B B => ? -> %NOUNS
-# 24   B ? => ?1 -> %NOUNS
-# 25   ? N => make N the tag @nextiteration
-# 26   ? B => @nextiteration
-# 27   ? ? => @nextiteration
-################################################################################
-# Attach sequential numbers to sentences 1,2,3,..., n.
-# Take a sentence,
-#       Collect:
-#           POSs for the first 3 words of the sentence: W1/P W2/P W3/P
-#           All sentences with not checked W[1-3] as their first 3 words.
-#           Add W[1-3] to the checked words list
-#       Do:
-#           Use rulebasedlearn(doit) on cases 1-27 and clues to grow %NOUNS and %BDRY and attach tags to the end of sentences.
-#           [@todo:If in conflict with previous decisions, merge the two sets of
-#                                       sentences, then apply rules and clues]
-#           Use instancebaselearn on the remaining sentences
-#           Index these sentences with the decision number
-#
-#           GO TO: Take a sentence
-#       Stop:
-#           When no new term is entered to %NOUNS and %BDRY
-#       Markup the remaining sentences with default tags
-#       Dump marked sentences to disk
-###############################################################################
-
-
-markupbypattern(); #chromosome
-
-markupignore();#similar to , differs from etc.3/21/09
+	my $CHECKEDWORDS = ":"; #leading three words of sentences
+	my $N = 3; #$N leading words
+	my $SENTID = 0;
+	my $DECISIONID = 0;
+	my $PROPERNOUNS = "propernouns"; #EOL
+	my %WNNUMBER =(); #word->(p|s)
+	my %WNSINGULAR = ();#word->singular
+	my %WNPOS = ();   #word->POSs
+	my %WNPOSRECORDS = ();
+	my $NEWDESCRIPTION =""; #record the index of sentences that ends a description
+	my %WORDS = ();
+	my %PLURALS = ();
+	#3/12/09
+	#my %NUMBERS = (0, 'zero', 1, 'one', 'first',2, 'two','second', 3, 'three','third', 'thirds',4,'four','fourth','fourths', 5,'five','fifth','fifths', 6,'six','sixth','sixths',7,'seven','seventh','sevenths', 8,'eight','eighths','eighth',9,'nine','ninths','ninth','tenths','tenth');
+	#4/22/09
+	my $NUMBERS = "zero|one|ones|first|two|second|three|third|thirds|four|fourth|fourths|quarter|five|fifth|fifths|six|sixth|sixths|seven|seventh|sevenths|eight|eighths|eighth|nine|ninths|ninth|tenths|tenth";
+	#the following two patterns are used in mySQL rlike
+	my $PREFIX ="ab|ad|bi|deca|de|dis|di|dodeca|endo|end|e|hemi|hetero|hexa|homo|infra|inter|ir|macro|mega|meso|micro|mid|mono|multi|ob|octo|over|penta|poly|postero|post|ptero|pseudo|quadri|quinque|semi|sub|sur|syn|tetra|tri|uni|un|xero|[a-z0-9]+_";
+	my $SUFFIX ="er|est|fid|form|ish|less|like|ly|merous|most|shaped"; # 3_nerved, )_nerved, dealt with in subroutine
+	my $FORBIDDEN ="to|and|or|nor"; #words in this list can not be treated as boundaries "to|a|b" etc.
+	my $PRONOUN ="all|each|every|some|few|individual|both|other";
+	my $CHARACTER ="lengths|length|lengthed|width|widths|widthed|heights|height|character|characters|distribution|distributions|outline|outlines|profile|profiles|feature|features|form|forms|mechanism|mechanisms|nature|natures|shape|shapes|shaped|size|sizes|sized";#remove growth, for growth line. check 207, 3971
+	my $PROPOSITION ="above|across|after|along|around|as|at|before|beneath|between|beyond|by|for|from|in|into|near|of|off|on|onto|out|outside|over|than|throughout|toward|towards|up|upward|with|without";
+	my $TAGS = "";
+	my $PLENDINGS = "[^aeiou]ies|i|ia|(x|ch|sh)es|ves|ices|ae|s";
+	my $CLUSTERSTRINGS = "group|groups|clusters|cluster|arrays|array|series|fascicles|fascicle|pairs|pair|rows|number|numbers|\\d+";
+	my $SUBSTRUCTURESTRINGS = "part|parts|area|areas|portion|portions";
+		
+	my $mptn = "((?:[mbq][,&]*)*(?:m|b|q(?=[pon])))";#grouped #may contain q but not the last m, unless it is followed by a p
+	my $nptn = "((?:[nop][,&]*)*[nop])"; #grouped #must present, no q allowed
+	my $bptn = "([,;:\\.]*\$|,*[bm]|(?<=[pon]),*q)"; #grouped #when following a p, a b could be a q
+	my $SEGANDORPTN = "(?:".$mptn."?".$nptn.")"; #((?:[mq],?)*&?(?:m|q(?=p))?)((?:[np],?)*&?[np])
+	my $ANDORPTN = "^(?:".$SEGANDORPTN."[,&]+)*".$SEGANDORPTN.$bptn;
 	
-print stdout "Learning rules with high certainty:\n";
-discover("start");
-
-print stdout "Bootstrapping rules:\n";
-discover("normal");
-
-#Hong Nov.18: 
-#print stdout "additional bootstrapping:\n";
-additionalbootstrapping();
-
-#4/7/09 switch order between unknownwordbootstrapping and separatemodifiers
-#bootstrap the unknownwords table: starting with simple pls.
-unknownwordbootstrapping(); #result in entire set of fully tagged sentences
-
-#4/7/09
-adjsverification(); #lateral mistaken as "s", doesn't work
-
-#break tag into modifier and tag (one word). 
-#Make tags starting with stopword "unknown" or remove some/all etc from tag. 
-#Contains NULL for unknown tags/modifiers.
-separatemodifiertag(); 
-
-#4/15/09
-print stdout "::::::::::::::::::::::::reduce roles for NMB words: \n";
-resolvenmb();
-
-#Hong Nov.18: adding
-print stdout "::::::::::::::::::::::::set and or: \n";
-setandor(); #reset tag to [andor] for and/or sentence
+	my $IGNOREPTN = "(assignment|resemb[a-z]+|like [A-Z]|similar|differs|differ|revision|genus|family|suborder|species|specimen|order|superfamily|class|known|characters|characteristics|prepared|subphylum|assign[a-z]*|available|nomen dubium|said|topotype|1[5-9][0-9][0-9])";
+		 
+	my $stop = $NounHeuristics::STOP;
+	
 
 
-if ($lm eq "adj"){
-	print stdout "::::::::::::::::::::::::Bootstrapping on adjective subjects: \n";
-	adjectivesubjectbootstrapping() 
-}else{
-	#3/11/09
-	my $v = 0;
-	do{
-		$v = 0;	
-		$v= andor();
-	#	print stdout "::::::::::::::::::::::::Bootstrapping on adjective subjects: \n";
-	#	adjectivesubjectbootstrapping() if $v >0;
-	}while $v > 0;
+sub extractOrganNames{
+	my ($db, %paragraphs) = @_;
+
+	print stdout "Initialized:\n";
+	###########################################################################################
+	#########################                                     #############################
+	#########################set up global variables              #############################
+	###########################################################################################
+	
+	#prepare database
+	my $haskb = kbexists();
+	$haskb = 0;
+	setupdatabase($db);
+	
+	if($haskb){
+		importfromkb();
+	}
+	
+	#read sentences in from disk	
+	print stdout "Reading sentences:\n";
+	populatesents(%paragraphs);
+	
+	my $text = "";
+	while( my ($k, $v) = each %paragraphs ) {
+        $text .= $v." ";
+	}
+	addheuristicsnouns($text);
+	addstopwords();
+	addcharacters();#3/24/09
+	addnumbers(); #4/11/09
+	addclusterstrings(); #4/11/09
+	addpropernouns(); #6/2/09
+	
+	posbysuffix();
+	resetcounts();
+	###############################################################################
+	# bootstrap between %NOUNS and %BDRY on plain text description
+	# B: a boundary word, N: a noun or noun *phrase* ?: a unknown word
+	# goal: grow %NOUNS and %BDRY + confirm tags
+	#
+	# decision table: leading three words (@todo: exclude "at the center of xxx")
+	# foremost, collect the patterns and find the number of unique instances (I) of "?"
+	# deal with the cases with good hints first
+	# leave the cases with high uncertainty for the next iteration
+	# use the NNP as the tag "flower buds" "basal leaves"
+	# with the assumption that "N N N"s are rare, "N N" and "N" are most common
+	
+	# clues: ?~pl, tag words' POS patterns
+	# N <=>B [last N (likely to be a pl) is followed by a B, the first B is proceeded by a N]
+	# need to distinguish the two usages of Ns, [1] when used as the main N in a tag e.g. <female flowers>
+	# [2] when used to modify another N in a tag <flower buds>
+	# if [1] is seen, then <flower> shouldn't be a tag.
+	# cases: see *rulebasedlearn*  for heuritics
+	# 1  N N N => make "N N N" the tag
+	# 2    N B => make "N N" the tag
+	# 3    N ? => if I>2 or "N N" is a phrase or N2-pl, ? -> %BDRY and make "N N" the tag
+	# 4    B N => make "N1" the tag
+	# 5    B B => make N the tag
+	# 6    B ? => make N the tag
+	# 7    ? N => if I>2 or N1-pl, ? -> %BDRY and make N1 the tag; else @nextiteration
+	# 8    ? B => if N-pl, ? -> %BDRY and make N the tag; if I>2 and N1-sg and ?~pl, ? -> %NOUNS and make "N ?" the tag; else @nextiteration
+	# 9    ? ? => if N-pl, ? -> %BDRY and make N the tag; if any ?~pl, make up to the ? the tag and that ?->@NOUNS; else @nextiteration
+	# 10 B N N => make "B N N" the tag
+	# 11   N B => make "B N" the tag
+	# 12   N ? => if N-pl, ? -> %BDRY and make "B N" the tag; if ?~pl, make "B N ?" the tag and ?->@NOUNS;else @nextiteration
+	# 13   B N => make "B B N" the tag
+	# 14   B B => search for the first N and make it the tag
+	# 15   B ? => if I>2, ?-> %NOUNS and make "B B N" the tag; else @nextiteration
+	# 16   ? N => make "B ? N" the tag
+	# 17   ? B => ? -> %NOUNS and make "B1 ?" the tag.
+	# 18   ? ? => @nextiteration
+	# 19 ? N N => if I>2 or any N-pl, make up to the N the tag and ? ->%BDRY
+	# 20   N B => make "? N" the tag
+	# 21   N ? => make N the tag and ?2->%BDRY
+	# 22   B N => make "? B N" the tag
+	# 23   B B => ? -> %NOUNS
+	# 24   B ? => ?1 -> %NOUNS
+	# 25   ? N => make N the tag @nextiteration
+	# 26   ? B => @nextiteration
+	# 27   ? ? => @nextiteration
+	################################################################################
+	# Attach sequential numbers to sentences 1,2,3,..., n.
+	# Take a sentence,
+	#       Collect:
+	#           POSs for the first 3 words of the sentence: W1/P W2/P W3/P
+	#           All sentences with not checked W[1-3] as their first 3 words.
+	#           Add W[1-3] to the checked words list
+	#       Do:
+	#           Use rulebasedlearn(doit) on cases 1-27 and clues to grow %NOUNS and %BDRY and attach tags to the end of sentences.
+	#           [@todo:If in conflict with previous decisions, merge the two sets of
+	#                                       sentences, then apply rules and clues]
+	#           Use instancebaselearn on the remaining sentences
+	#           Index these sentences with the decision number
+	#
+	#           GO TO: Take a sentence
+	#       Stop:
+	#           When no new term is entered to %NOUNS and %BDRY
+	#       Markup the remaining sentences with default tags
+	#       Dump marked sentences to disk
+	###############################################################################
+	
+	
+	markupbypattern(); #chromosome
+	
+	markupignore();#similar to , differs from etc.3/21/09
+		
+	print stdout "Learning rules with high certainty:\n";
+	discover("start");
+	
+	print stdout "Bootstrapping rules:\n";
+	discover("normal");
+	
+	separatemodifiertag(); 
+	print stdout "::::::::::::::::::::::::Final step: normalize tag and modifiers: \n";
+	normalizetags(); ##normalization is the last step : turn all tags and modifiers to singular fo
+	
+	print stdout "Done:\n";
+	
 }
-
-print stdout "::::::::::::::::::::::::reset and or: \n";
-resetandor();
-
-print stdout "::::::::::::::::::::::::tag all sentences: \n";
-tagallsentences("singletag", "sentence"); #not "original"
-
-print stdout "::::::::::::::::::::::::markup by pos: \n";
-markupbypos(); #3/26/09 takes R0, R1, and R2 out of remainnulltag(). makes new discoveries. pattern: one word sentence => boundary e.g. alternate; x x x pl cases
-#3/21/09 switched order of phraseclause() and ditto()
-print stdout "::::::::::::::::::::::::PhraseClause: \n";
-phraseclause(); #does not make new discoveries, work on remaining null tagged clauses: to be tested, test1 does not have such cases.
-print stdout "::::::::::::::::::::::::Ditto: \n";
-ditto(); #does not make new discoveries, work on remaining null tagged clauses.
-print stdout "::::::::::::::::::::::::Of: \n";
-of(); #need knowledge of structural hierarchy, should be the last learning module
-print stdout "::::::::::::::::::::::::Pronoun/character/proposition/errours noun subjects: \n"; 
-pronouncharactersubject(); #no new discoveries
-print stdout "::::::::::::::::::::::::Finalize ignored sentences: \n";## 3/24/09
-finalizeignored(); #modified 3/26/09
-print stdout "::::::::::::::::::::::::Tag remaining isnull(tag) sentences: \n";
-remainnulltag(); #keep only R3 3/26/09
-if($lm eq "adj"){
-	print stdout "::::::::::::::::::::::::Common Substructures: \n";
-	commonsubstructure();
-}
-
-#3/28/09 tobe checked
-print stdout "::::::::::::::::::::::::Comma used for 'and': \n";
-commaand(); #to be tested on a larger set, test0 does not have this case. no new discovery, all clauses matching the 
-
-
-
-#3/11/09
-#print stdout":::::::::::::::::::::::::x with y pattern:\n";
-#fixxwithy(); #disabled. could be "shape with ..."
-
-#3/29/09, 4/29/09 swith order with normalizetags
-if ($lm eq "plain"){
-	print stdout "::::::::::::::::::::::::Normalize modifiers: \n";
-	normalizemodifiers(); #to be tested on a larger set, test0 does not have this case.
-}
-
-print stdout "::::::::::::::::::::::::Final step: normalize tag and modifiers: \n";
-normalizetags(); ##normalization is the last step : turn all tags and modifiers to singular form
-#resolvesentencetags(); #for future
-
-print stdout "Done:\n";
-
-#test 4/15/09 true modifiers
-listtruemodifiers();
-
-
-#5/10/09 
-#wordnet counts: total not-in-wn multiple-pos
-print "wordnet pos access: \n";
-my $t = 0;
-my $notin = 0;
-my $multi = 0;
-foreach (keys(%WNPOSRECORDS)){
-	$t++;
-	$notin++ if($WNPOSRECORDS{$_} !~/\w/);
-	$multi++ if(length($WNPOSRECORDS{$_})>1);
-	print "$_ => $WNPOSRECORDS{$_}\n"; 
-}
-print stdout "wordnet counts: $t $notin $multi\n";
-
-#old subroutines
-##print stdout "Handling 'and' and 'or':\n";
-##print "##############andor cases\n" if $debug;
-##andor();
-##defaultmarkup($TAGS);
 ###################################################################################################
 ###################### managing KB                             ####################################
 ###################################################################################################
@@ -460,6 +255,7 @@ sub importfromkb{
 ########################prepare database tables            #################################
 ############################################################################################
 sub setupdatabase{
+	my $db = shift;
 
 #my $test = $dbh->prepare('show databases')
 #or die $dbh->errstr."\n";
@@ -617,7 +413,8 @@ sub addclusterstrings{
 
 ###lateral/laterals terminal/terminals: blades of mid cauline spatulate or oblong to obovate or lanceolate , 6 – 35 × 1 – 15 cm , bases auriculate , auricles deltate to lanceolate , ± straight , acute , margins usually pinnately lobed , lobes ± deltate to lanceolate , not constricted at bases , terminals usually larger than laterals , entire or dentate .
 sub addheuristicsnouns{
-	my @nouns = NounHeuristics::heurnouns($dir, "");
+	my $text = shift;
+	my @nouns = NounHeuristics::heurnouns($text, "");
 	#EOL:@nouns = ("angle[s]", "angles[p]", "base[s]", "bases[p]", "cell[s]", "cells[p]", "depression[s]", "depressions[p]", "ellipsoid[s]", "ellipsoids[p]", "eyespot[s]", "eyespots[p]", "face[s]", "faces[p]", "flagellum[s]", "flagella[p]", "flange[s]", "flanges[p]", "globule[s]", "globules[p]", "groove[s]", "grooves[p]", "line[s]", "lines[p]", "lobe[s]", "lobes[p]", "margin[s]", "margins[p]", "membrane[s]", "membranes[p]", "notch[s]", "notches[p]", "plastid[s]", "plastids[p]", "pore[s]", "pores[p]", "pyrenoid[s]", "pyrenoids[p]", "quarter[s]", "quarters[p]", "ridge[s]", "ridges[p]", "rod[s]", "rods[p]", "row[s]", "rows[p]", "sample[s]", "samples[p]", "sediment[s]", "sediments[p]", "side[s]", "sides[p]", "vacuole[s]", "vacuoles[p]", "valve[s]", "valves[p]");
 	print  "nouns learnt from heuristics:\n@nouns\n" if $debug;
 
@@ -2786,16 +2583,7 @@ sub pronouncharactersubject{
 ############################################################################################
 sub remainnulltag{
 	my($sth, $sentid, $sentence);
-	#"general"
-	$sth = $dbh->prepare("select sentid from sentence where (isnull(tag) or tag ='' or tag = 'ditto' or tag ='unknown') and source like '%-0'");
-	$sth->execute() or warn "$sth->errstr\n";
-	while(($sentid) = $sth->fetchrow_array()){
-		my $sth1=$dbh->prepare("update sentence set modifier ='', tag ='$defaultgeneraltag' where sentid = $sentid");
-		$sth1->execute() or warn "$sth1->errstr\n";
-		print "mark [$sentid] <general>: $sentence\n" if $debug;
-	}
-	
-	
+
 	#NULL
 	#if clause contains no N => ditto
 	
@@ -3287,18 +3075,24 @@ sub separatemodifiertag{
 ###########  normalize tags                      ########################
 ##############################################################################
 #turn all tags and modifiers to singular form
+
+#reset "of" tags to NULL, for example "aspects of snout".
  
 sub normalizetags{
 	my ($sth, $sth1, $sentid, $tag, $modifier, $bracted, $sentence);
 	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from sentence where (tag != 'ignore' or isnull(tag))");
 	$sth->execute() or warn "$sth->errstr\n";
  	while(($sentid, $sentence, $tag, $modifier) = $sth->fetchrow_array()){
-		$tag = normalizethis($tag);
- 		$modifier = normalizethis($modifier);
- 		if($tag =~/\w/){
- 			tagsentwmt($sentid, $sentence, $modifier, $tag, "normalizetags");
+ 		if($sentence =~/$tag\s+of\s+/){
+			tagsentwmt($sentid, $sentence, "", "NULL", "normalizetags"); 			
  		}else{
- 			tagsentwmt($sentid, $sentence, $modifier, "NULL", "normalizetags");
+ 			$tag = normalizethis($tag);
+ 			$modifier = normalizethis($modifier);
+ 			if($tag =~/\w/){
+ 				tagsentwmt($sentid, $sentence, $modifier, $tag, "normalizetags");
+ 			}else{
+ 				tagsentwmt($sentid, $sentence, $modifier, "NULL", "normalizetags");
+ 			}
  		}
  	}
 } 
@@ -3744,6 +3538,8 @@ sub singular{
  my $s; 
  if($p eq "valves"){ return "valve"};
  if($p eq "media"){ return "media"};
+ if($p eq "frons"){return "frons"};
+ if($p eq "species") {return "species"};
  if(getnumber($p) eq "p"){
     if($p =~ /(.*?[^aeiou])ies$/){
       $s = $1.'y';
@@ -4917,7 +4713,8 @@ sub updatePOS{
    if($word =~ /(\b|_)(NUM|$NUMBERS|$CLUSTERSTRINGS|$CHARACTER)\b/ and $pos =~/[nsp]/){
    	return 0;
    }
-
+	
+	$word =~ s#(?<!\\)"#\\"#g;
 	$newwordflag = 1;	
   	#updates should be in one transaction
 	$sth1 = $dbh->prepare("select pos, role, certaintyu, certaintyl from wordpos where word='$word' ");
@@ -5479,13 +5276,12 @@ sub plural{
 ########"sentences" here include . or ; ending text blocks.
 ######## put all unique words in unknownwords
 sub populatesents{
-my ($file, $text, @sentences,@words,@tmp,$status,$lead,$stmt,$sth, $escaped, $original, $count);
-opendir(IN, "$dir") || die "$!: $dir\n";
-while(defined ($file=readdir(IN))){
-	if($file !~ /\w/){next;}
-	#print "read $file\n" if $debug;
-	$text = ReadFile::readfile("$dir$file");
-	#print $text."\n";
+	my %paragraphs = @_;
+	
+my ($text, @sentences,@words,@tmp,$status,$lead,$stmt,$sth, $escaped, $original, $count);
+	
+foreach my $pid (keys(%paragraphs)){
+	$text = $paragraphs{$pid};	
 	$text =~ s#\s*-\s*to\s+# to #g; #4/7/09 plano - to
 	$text =~ s#[-\s]+shaped#-shaped#g; #5/30/09
 	$text =~ s#<.*?>##g; #remove html tags
@@ -5527,7 +5323,7 @@ while(defined ($file=readdir(IN))){
 		#may have fewer than $N words
 		if(!/\w+/){next;}
 		my $line = $_;
-		my $oline = getOriginal($line, $original, $file);
+		my $oline = getOriginal($line, $original, $pid);
     	
     	$line =~ s#'# #g; #remove all ' to avoid escape problems
     	$oline =~ s#'# #g;
@@ -5548,10 +5344,12 @@ while(defined ($file=readdir(IN))){
     	
     	#s#\(#\\(#g;
     	#s#\)#\\)#g;
-    	my $source = $file."-".$count++;
+    	my $source = $pid."-".$count++;
     	if(length($oline) >=2000 ){#EOL
     		$oline = $line;
     	}
+    	
+    	$line =~ s#^(a|an|the|\W+)\b\s*##i;
     	$stmt = "insert into sentence(sentid, source, sentence, originalsent, lead, status) values($SENTID,'$source' ,'$line','$oline','$lead', '$status')";
 		$sth = $dbh->prepare($stmt);
     	$sth->execute() or die $sth->errstr."\n SQL Statement: ".$stmt."\n";
@@ -5560,8 +5358,8 @@ while(defined ($file=readdir(IN))){
 		$SENTID++;
 	}
 	my $end = $SENTID-1;
-	$NEWDESCRIPTION.=$file."[".$end."] ";
-	my $query = $dbh->prepare("insert into sentInFile values ('$file', $end)");
+	$NEWDESCRIPTION.=$pid."[".$end."] ";
+	my $query = $dbh->prepare("insert into sentInFile values ('$pid', $end)");
 	$query->execute() or warn $query->errstr."\n";
 }
 	chop($PROPERNOUNS);
@@ -5611,6 +5409,7 @@ sub populateunknownwordstable{
 sub getfirstnwords{
 	########return the first up to $n words of $sentence as an array, excluding
 	my($sentence, $n) = @_;
+	$sentence =~ s#^(a|an|the|\W+)\b\s*##i;
 	my (@words, $index, $w);
 	@words = tokenize($sentence, "firstseg");
 	#print "words in sentence: @words\n" if $debug;
@@ -5647,7 +5446,7 @@ sub getOriginal{
 		print "\nline ====> $line\n\n";
 		print "orginal ====> $original\n";
 		print "pattern ====> $pattern1\n";
-		die "the above doesn't match\n\n";
+		die "the above doesn't match\n\n"; #TODO: die or warn
 	}
 }
 
@@ -5681,4 +5480,5 @@ sub tokenize{
   	return @words;
 }
 
+1;
 
