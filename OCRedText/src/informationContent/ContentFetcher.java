@@ -71,10 +71,11 @@ public class ContentFetcher {
 		ArrayList<String> paras = new ArrayList<String>();
 		ArrayList<String> sources = new ArrayList<String>();
 		int count = 0;
+		int paraID = 0;
 		File[] allFiles = sourceFile.listFiles();
 		for(int i =0; i<allFiles.length; i++){
 			String source = allFiles[i].getName();
-			int paraID = 0;
+			
 			//read this file line by line, concat the lines that make a paragraph, use heuristics 1: H1
 			try{
 			    FileInputStream fstream = new FileInputStream(allFiles[i]);
@@ -147,7 +148,7 @@ public class ContentFetcher {
 			ArrayList<String> paras = new ArrayList<String>();
 			try{
 				//prolog
-				DatabaseAccessor.selectParagraphsFromSource(prefix, source, "type='unassigned'", "paraID", paraIDs, paras, conn);
+				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type='unassigned'", "paraID", paraIDs, paras, conn);
 
 				for( int j = 0; j<paraIDs.size(); j++){
 					int paraID = Integer.parseInt((String)paraIDs.get(j));
@@ -161,7 +162,7 @@ public class ContentFetcher {
 				//epilogue
 				paraIDs = new ArrayList<String>();
 				paras = new ArrayList<String>();
-				DatabaseAccessor.selectParagraphsFromSource(prefix, source, "type='unassigned'", "paraID desc", paraIDs, paras, conn);
+				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type='unassigned'", "paraID desc", paraIDs, paras, conn);
 				for( int j = 0; j<paraIDs.size(); j++){
 					int paraID = Integer.parseInt((String)paraIDs.get(j));
 					String para = (String)paras.get(j);
@@ -175,7 +176,7 @@ public class ContentFetcher {
 				paraIDs = new ArrayList<String>();
 				paras = new ArrayList<String>();
 				
-				DatabaseAccessor.selectParagraphsFromSource(prefix, source, "type='unassigned'", "paraID", paraIDs, paras, conn);
+				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type='unassigned'", "paraID", paraIDs, paras, conn);
 				for( int j = 0; j<paraIDs.size(); j++){
 					int paraID = Integer.parseInt((String)paraIDs.get(j));
 					String para = (String)paras.get(j);
@@ -209,7 +210,7 @@ public class ContentFetcher {
 	}
 	
 	/**
-	 * text and its preceding or followiing n text are also very short
+	 * text and its preceding or following n text are also very short
 	 * @param paraID
 	 * @param para
 	 * @param source
@@ -224,14 +225,14 @@ public class ContentFetcher {
 				int preLimit = paraID - limit;
 				ArrayList<String> paraIDs = new ArrayList<String>();
 				ArrayList<String> paras = new ArrayList<String>();
-				DatabaseAccessor.selectParagraphsFromSource(prefix, source, "paraID>="+preLimit+" and paraID <"+paraID+" and length(paragraph) < "+this.lineLength*2/3, "", paraIDs, paras, conn);
+				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type like '%shorttext%' and paraID>="+preLimit+" and paraID <"+paraID+" and length(paragraph) < "+this.lineLength*2/3, "", paraIDs, paras, conn);
 				if(paras.size()==limit)
 				{return true;}
 				//following
 				int folLimit = paraID + limit;
 				paraIDs = new ArrayList<String>();
 				paras = new ArrayList<String>();
-				DatabaseAccessor.selectParagraphsFromSource(prefix, source, "paraID<="+folLimit+" and paraID >"+paraID+" and length(paragraph) < "+this.lineLength*2/3, "", paraIDs, paras, conn);
+				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"'and type like '%unassigned%' and paraID<="+folLimit+" and paraID >"+paraID+" and length(paragraph) < "+this.lineLength*2/3, "", paraIDs, paras, conn);
 				if(paras.size()==limit)
 				{return true;} 
 			}catch (Exception e){
@@ -323,7 +324,7 @@ public class ContentFetcher {
 	 */
 	private boolean isFigureTable(int paraID, String para, String source) {
 		para = para.trim();
-		Pattern pattern = Pattern.compile("(Fig\\.|Figure|Table)\\s+\\d+.*?", Pattern.CASE_INSENSITIVE);
+		Pattern pattern = Pattern.compile("(Fig\\.|Figure|Table|FIG\\.|TABLE|FIGURE|FlG\\.|FlGURE)\\s+\\d+.*?");
 		Matcher m = pattern.matcher(para); 
 		if(m.matches()){
 			//traceBack
@@ -339,11 +340,13 @@ public class ContentFetcher {
 	 * @param source
 	 */
 	private void traceBackFigTblContent(int paraID, String source) {
-		String condition = "paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50 and paragraph COLLATE utf8_bin rlike '^[[:space:]]*[[:upper:]]'";
+		//String condition = "paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50 and paragraph COLLATE utf8_bin rlike '^[[:space:]]*[[:upper:]]'";
+		String condition = "source='"+source+"'and paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50";
+
 		try{
 			ArrayList<String> paraIDs = new ArrayList<String> ();
 			ArrayList<String> paras = new ArrayList<String> ();
-			DatabaseAccessor.selectParagraphsFromSource(prefix, source, condition, "", paraIDs, paras, conn);
+			DatabaseAccessor.selectParagraphs(prefix, condition, "", paraIDs, paras, conn);
 			int offset = 1;
 			for(int i =paraIDs.size()-1; i>=0; i--){
 					int pID = Integer.parseInt((String)paraIDs.get(i));
@@ -391,15 +394,18 @@ public class ContentFetcher {
 			return true;
 		}
 		//if not
-		header = header.replaceAll("'", "\\\\'");
-		String condition = "paragraph rlike '^[[:digit:]]+[[:space:]]+"+header+"' or paragraph rlike '"+header+"[[:space:]]+[[:digit:]]+$'";
-		try{
-			ArrayList<String> paraIDs = new ArrayList<String> ();
-			ArrayList<String> paras = new ArrayList<String> ();
-			DatabaseAccessor.selectParagraphsFromSource(prefix, source, condition, "", paraIDs, paras, conn);
-			if(paraIDs.size() >=3){return true;}
-		}catch(Exception e){
-			e.printStackTrace();
+		if(header.length() < this.lineLength*2/3){
+			header = header.replaceAll("\\.", "[[.period.]]").replaceAll("'", "[[.apostrophe.]]").replaceAll("\\^", "[[.circumflex.]]");
+			
+			String condition = "source='"+source+"' and paragraph rlike '^[[:space:]]*[[:digit:]]+[[:space:]]+"+header+"' or paragraph rlike '"+header+"[[:space:]]+[[:digit:]]+[[:space:]]*$'";
+			try{
+				ArrayList<String> paraIDs = new ArrayList<String> ();
+				ArrayList<String> paras = new ArrayList<String> ();
+				DatabaseAccessor.selectParagraphs(prefix, condition, "", paraIDs, paras, conn);
+				if(paraIDs.size() >=3){return true;}
+			}catch(Exception e){
+				e.printStackTrace();
+			}
 		}
 		return false;
 	}
@@ -455,12 +461,16 @@ public class ContentFetcher {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		String sourceFilePath="X:\\DATA\\BHL\\test";
+		String sourceFilePath="X:\\DATA\\BHL\\bhl";
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		String pnt1 = "FIELDIANA: BOTANY, VOLUME 40".toLowerCase();
 		String pnt2 = "BURGER: FLORA COSTARICENSIS".toLowerCase();
+		//String pnt3 = "FIELDIANA: BOTANY, VOLUME 24".toLowerCase();
+		//String pnt4 = "STANDLEY AND STEYERMARK: FLORA OF GUATEMALA".toLowerCase();
 		pageNumberText.add(pnt1); 
 		pageNumberText.add(pnt2);
+		//pageNumberText.add(pnt3);
+		//pageNumberText.add(pnt4);
 		
 		ArrayList<String> footNoteTokens = new ArrayList<String>();
 		String fnt1="'";
