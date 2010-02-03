@@ -2,7 +2,13 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="C:/Program Files/JavaClassPath/log4j-1.2.15.jar"/>
-	<classpathentry kind="lib" path="C:/Program Files/JavaClassPath/mysql-connector-java-5.0.8-bin.jar"/>
+	<classpathentry kind="lib" path="lib/jaxen-jdom.jar"/>
+	<classpathentry kind="lib" path="lib/jdom.jar"/>
+	<classpathentry kind="lib" path="lib/log4j-1.2.15.jar"/>
+	<classpathentry kind="lib" path="lib/mysql-connector-java-5.0.8-bin.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.core.commands_3.5.0.I20090525-2000.jar"/>
+	<classpathentry kind="lib" path="lib/org.eclipse.core.runtime_3.5.0.v20090525.jar"/>
+	<classpathentry kind="lib" path="lib/saxpath.jar"/>
+	<classpathentry kind="lib" path="lib/jaxen-core.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
