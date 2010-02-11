@@ -37,7 +37,7 @@ public class ContentFetcher {
 	private ArrayList footNoteTokens = null;
 	private File sourceFile = null;
 	private String prefix = null;
-	private int lineLength = 78;
+	public int lineLength = 78;
 	private Connection conn = null;
 	private static String url = ApplicationUtilities.getProperty("database.url");
 	/**
@@ -153,7 +153,8 @@ public class ContentFetcher {
 				for( int j = 0; j<paraIDs.size(); j++){
 					int paraID = Integer.parseInt((String)paraIDs.get(j));
 					String para = (String)paras.get(j);
-					if(para.trim().length() < this.lineLength){ //H4
+					//if(para.trim().length() < this.lineLength){ //H4
+					if(!para.trim().matches("^((TABLE OF )?CONTENTS|(Table [Oo]f )?Contents)$")){ //H4
 						markAsType(paraID, "noncontent_prolog");
 					}else{
 						break;
@@ -166,7 +167,7 @@ public class ContentFetcher {
 				for( int j = 0; j<paraIDs.size(); j++){
 					int paraID = Integer.parseInt((String)paraIDs.get(j));
 					String para = (String)paras.get(j);
-					if(para.trim().length() < 75 ){ //H5
+					if(para.trim().length() < this.lineLength){ //H5
 						markAsType(paraID, "noncontent_epilog");
 					}else{
 						break;
@@ -266,17 +267,18 @@ public class ContentFetcher {
 	private boolean isInterruptingPoint(int paraID, String para, String source) {
 		para = para.trim();
 
-		Pattern pattern = Pattern.compile("^([a-z0-9].*?)\\.($|\\s+[A-Z].*)");//start with a lower case letter or a number
+		Pattern pattern = Pattern.compile("^([_ (\\[a-z0-9)\\]].*?)($|\\.\\s+[A-Z].*)");//start with a lower case letter or a number
 		Matcher m = pattern.matcher(para);
 		if(m.matches()){
 			String start = m.group(1);
+			start = start.replaceAll("[(\\[\\])]", "");
 			start = start.replaceAll("[Il]", "1").replaceAll("[\\.\\s]", ""); //OCR errors, mistaken 1 as I or l. Make 2 Ia. =>21a. Make 2.1 =>21
 			
 			if(start.matches("\\d+") || start.matches("[a-zA-Z]") || start.matches("\\d+[a-zA-Z]")){//matches 2, a, 2a, 1920
 				return false; //bullets
 			}
 			if(/*start.matches("^[a-z].*") &&*/ start.length()>1){
-				return true; //para starts with a lower case letter or a number
+				return true; //else
 			}
 		}
 				
@@ -341,11 +343,21 @@ public class ContentFetcher {
 	 */
 	private void traceBackFigTblContent(int paraID, String source) {
 		//String condition = "paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50 and paragraph COLLATE utf8_bin rlike '^[[:space:]]*[[:upper:]]'";
-		String condition = "source='"+source+"'and paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50";
+		//String condition = "source='"+source+"'and paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50";
 
 		try{
 			ArrayList<String> paraIDs = new ArrayList<String> ();
 			ArrayList<String> paras = new ArrayList<String> ();
+			//find the paraID for the last pagenum
+			int last = 0;
+			String condition = "type like '%pagenum%' and paraID < "+paraID;
+			DatabaseAccessor.selectParagraphs(prefix, condition, "paraID desc", paraIDs, paras, conn);
+			if(paraIDs.size()>=1){
+				last = Integer.parseInt(paraIDs.get(0));
+			}
+			paraIDs = new ArrayList<String> ();
+			paras = new ArrayList<String> ();
+			condition = "source='"+source+"'and paraID < "+paraID+" and paraID > "+last+" and length(paragraph) <="+this.lineLength*1/2;
 			DatabaseAccessor.selectParagraphs(prefix, condition, "", paraIDs, paras, conn);
 			int offset = 1;
 			for(int i =paraIDs.size()-1; i>=0; i--){
@@ -373,7 +385,7 @@ public class ContentFetcher {
 			return true;
 		}
 		Pattern lpattern = Pattern.compile("^\\d+\\s+(.*)");
-		Pattern rpattern = Pattern.compile("(.*?)\\s+\\d+$");
+		Pattern rpattern = Pattern.compile("(.*?)\\s*\\d+$"); //changed \\s+ to \\s* as Treatises page numbers are like D7. Test the effects.
 		Matcher lm = lpattern.matcher(para);
 		Matcher rm = rpattern.matcher(para);
 		String header = "";
@@ -394,9 +406,15 @@ public class ContentFetcher {
 			return true;
 		}
 		//if not
+		//check to see if header may be used in regexp
+		try{
+			Pattern p = Pattern.compile(header);
+		}catch (Exception e){
+			return false;
+		}
+		
 		if(header.length() < this.lineLength*2/3){
 			header = header.replaceAll("\\.", "[[.period.]]").replaceAll("'", "[[.apostrophe.]]").replaceAll("\\^", "[[.circumflex.]]");
-			
 			String condition = "source='"+source+"' and paragraph rlike '^[[:space:]]*[[:digit:]]+[[:space:]]+"+header+"' or paragraph rlike '"+header+"[[:space:]]+[[:digit:]]+[[:space:]]*$'";
 			try{
 				ArrayList<String> paraIDs = new ArrayList<String> ();
@@ -420,32 +438,73 @@ public class ContentFetcher {
 	private boolean isFootNote(int paraID, String para, String source) {
 		boolean cond1  = false;
 		boolean cond2  = false;
-		if(startWithAToken(para)){
+		if(startWithAToken(para, source)){
 			cond1=true;
 		}
-		if(isInterruptingPoint(++paraID, para, source)){
-			cond2=true;
+		try{
+			ArrayList<String> paras = new ArrayList();
+			ArrayList<String> paraIDs = new ArrayList();
+			paraID++;
+			String condition = "paraID="+paraID;
+			DatabaseAccessor.selectParagraphs(prefix, condition, "", paraIDs, paras, conn);
+			if(paras.size()>=1){
+				para = paras.get(0);
+				if(isInterruptingPoint(paraID, para, source)){
+					cond2=true;
+				}
+			}
+		}catch (Exception e){
+			e.printStackTrace();
 		}
 		
 		return cond1 && cond2;
 	}
-
-	private boolean startWithAToken(String para) {
+	/**
+	 * footnote should appear at least countThreshold times in the document.
+	 * If it is not in the footNoteTokens, it should appear at least twice as often to be considered footnote
+	 * @param para
+	 * @return
+	 */
+	private boolean startWithAToken(String para, String source) {
 		para = para.trim();
+		if(para.matches("^[(\\[{}\\])].*")){
+			return false;
+		}
+		int countThreshold = 2;
+		boolean cond1 = false; //in footNoteToken
+		boolean cond2 = false; //appear > 1
 		String first = para.substring(0, 1);
-		Pattern pattern = Pattern.compile("\\w");
+		Pattern pattern = Pattern.compile("[a-zA-Z0-9_()\\[\\]&%!*]");
 		Matcher m = pattern.matcher(first);
-		if(!m.matches()){ //any non-word token
-			return true;
+		if(this.footNoteTokens.contains(first) && !m.matches()){ //any non-word token
+			cond1 = true;
 		}
 		if(this.footNoteTokens.contains(first)){ //if the token is a word token, then there must be a non-word token following it
 			String second = para.substring(1, 2);
 			m=pattern.matcher(second);
 			if(!m.matches()){
-				return true;
+				cond1 = true;
 			}
 		}
-		return false;
+		
+		if(first.matches("\\W")){
+			first = first.replaceAll("\\*", "[[.asterisk.]]").replaceAll("\\+", "[[.plus-sign.]]")
+			.replaceAll("\\?", "[[.question-mark.]]").replaceAll("\\|", "[[.vertical-line.]]")
+			.replaceAll("\\.", "[[.period.]]").replaceAll("'", "[[.apostrophe.]]")
+			.replaceAll("\\^", "[[.circumflex.]]");
+			String condition = "source='"+source+"' and paragraph rlike '^[[:space:]]*"+first+"'";
+			try{
+				ArrayList<String> paraIDs = new ArrayList<String> ();
+				ArrayList<String> paras = new ArrayList<String> ();
+				DatabaseAccessor.selectParagraphs(prefix, condition, "", paraIDs, paras, conn);
+				if(paraIDs.size() >=countThreshold){cond2 = true;}
+				if(paraIDs.size() >=countThreshold*2){cond2 = true; cond1=true;}
+			}catch(Exception e){
+				e.printStackTrace();
+			}
+		}
+		
+		return cond1 && cond2;
 	}
 
 	private void markAsType(int paraID, String type) {
@@ -461,7 +520,9 @@ public class ContentFetcher {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		String sourceFilePath="X:\\DATA\\BHL\\bhl";
+		//String sourceFilePath="X:\\DATA\\BHL\\test";
+		String sourceFilePath="X:/DATA/Treatise/treatiseTest";
+
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		String pnt1 = "FIELDIANA: BOTANY, VOLUME 40".toLowerCase();
 		String pnt2 = "BURGER: FLORA COSTARICENSIS".toLowerCase();

@@ -162,8 +162,18 @@ public class TextExtractor{
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		String source = "X:/DATA/Treatise/Word/Part D/word";
-		String target = "X:/DATA/Treatise/Word/Part D/word/";
+		//[Console output redirected to file:X:\DATA\Treatise\Word\Part D.txt]
+		
+		
+		//String source = "X:/DATA/Treatise/Word/Part D/word";
+		//String target = "X:/DATA/Treatise/Word/Part D/word/";
+		
+		
+		//String source ="X:/DATA/Treatise/Word/part D converted to doc test/word";
+		//String target ="X:/DATA/Treatise/Word/part D converted to doc test/word/";
+		
+		String source ="X:/DATA/Treatise/recent/docs/parte-r-v3-1-200-1-col/word";
+		String target ="X:/DATA/Treatise/recent/docs/parte-r-v3-1-200-1-col/word/";
 		TextExtractor tet = new TextExtractor(source, target);
 		try{
 			tet.extract();
