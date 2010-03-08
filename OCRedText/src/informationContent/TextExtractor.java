@@ -172,8 +172,12 @@ public class TextExtractor{
 		//String source ="X:/DATA/Treatise/Word/part D converted to doc test/word";
 		//String target ="X:/DATA/Treatise/Word/part D converted to doc test/word/";
 		
-		String source ="X:/DATA/Treatise/recent/docs/parte-r-v3-1-200-1-col/word";
-		String target ="X:/DATA/Treatise/recent/docs/parte-r-v3-1-200-1-col/word/";
+		//this folder produces broken words, e.g. c la s s 
+		//String source ="X:/DATA/Treatise/recent/docs/parte-r-v3-1-200-1-col/word";
+		//String target ="X:/DATA/Treatise/recent/docs/parte-r-v3-1-200-1-col/word/";
+		
+		String source ="X:/DATA/Treatise/recent/docs/part-b-protoctista-1/word";
+		String target ="X:/DATA/Treatise/recent/docs/part-b-protoctista-1/word/";
 		TextExtractor tet = new TextExtractor(source, target);
 		try{
 			tet.extract();
