@@ -18,7 +18,7 @@ use DBI;
 if(@ARGV != 3) {
 print "\nUnsupervised.pl learns nouns/subjects from a folder of plain text descriptions and outputs the results a database.\n";
 print "\nUsage:\n";
-print "\tperl unsupervised.pl absolute-path-of-source-dir databasename mode[adj or plain]\n";
+print "\tperl unsupervised.pl absolute-path-of-source-dir databasename mode[adj or plain] prefix\n";
 print "\tResults will be saved to the database specified \n";
 exit(1);
 }
@@ -32,6 +32,7 @@ print stdout "Initialized:\n";
 my $dir = $ARGV[0]."\\";#textfile
 my $db = $ARGV[1];
 my $lm = $ARGV[2];  #learning mode:"adj" or "plain"
+my $prefix = $ARGV[3];
 my $defaultgeneraltag = "general";
 
 my $debug = 1;
@@ -399,51 +400,51 @@ $test->execute() or die $test->errstr."\n";
 
 my ($create, $del);
 
-$create = $dbh->prepare('create table if not exists sentence (sentid int(11) not null unique, source varchar(500), sentence varchar(2000), originalsent varchar(2000), lead varchar(50), status varchar(20), tag varchar('.$taglength.'),modifier varchar(150), charsegment varchar(500),primary key (sentid)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_sentence (sentid int(11) not null unique, source varchar(500), sentence varchar(2000), originalsent varchar(2000), lead varchar(50), status varchar(20), tag varchar('.$taglength.'),modifier varchar(150), charsegment varchar(500),primary key (sentid)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from sentence');
+$del = $dbh->prepare('delete from $prefix_sentence');
 $del->execute();
 
 
-$create = $dbh->prepare('create table if not exists wordpos (word varchar(50) not null, pos varchar(2) not null, role varchar(5), certaintyu int, certaintyl int, primary key (word, pos)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_wordpos (word varchar(50) not null, pos varchar(2) not null, role varchar(5), certaintyu int, certaintyl int, primary key (word, pos)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from wordpos');
+$del = $dbh->prepare('delete from $prefix_wordpos');
 $del->execute();
 
-$create = $dbh->prepare('create table if not exists sentInFile (filename varchar(200) not null unique primary key, endindex int not null) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_sentInFile (filename varchar(200) not null unique primary key, endindex int not null) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from sentInFile');
+$del = $dbh->prepare('delete from $prefix_sentInFile');
 $del->execute();
 
-$create = $dbh->prepare('create table if not exists modifiers (word varchar(50) not null unique primary key, count int, istypemodifier tinyint) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_modifiers (word varchar(50) not null unique primary key, count int, istypemodifier tinyint) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from modifiers');
+$del = $dbh->prepare('delete from $prefix_modifiers');
 $del->execute();
 
-$create = $dbh->prepare('create table if not exists isA (autoid int not null auto_increment primary key, instance varchar(50), class varchar(50)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_isA (autoid int not null auto_increment primary key, instance varchar(50), class varchar(50)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from isA');
+$del = $dbh->prepare('delete from $prefix_isA');
 $del->execute();
 
-$create = $dbh->prepare('create table if not exists unknownwords (word varchar(50) not null primary key, flag varchar(50)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_unknownwords (word varchar(50) not null primary key, flag varchar(50)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from unknownwords');
+$del = $dbh->prepare('delete from $prefix_unknownwords');
 $del->execute();
 
 
-$create = $dbh->prepare('create table if not exists singularplural (singular varchar(50), plural varchar(50), primary key (singular, plural)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_singularplural (singular varchar(50), plural varchar(50), primary key (singular, plural)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from singularplural');
+$del = $dbh->prepare('delete from $prefix_singularplural');
 $del->execute();
 
-$create = $dbh->prepare('create table if not exists discounted (word varchar(50), discountedpos varchar(5), possiblenewpos varchar(5), primary key (word, discountedpos)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_discounted (word varchar(50), discountedpos varchar(5), possiblenewpos varchar(5), primary key (word, discountedpos)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from discounted');
+$del = $dbh->prepare('delete from $prefix_discounted');
 $del->execute();
 
-$create = $dbh->prepare('create table if not exists substructure (structure varchar(100), substructure varchar(100), count int, primary key (structure, substructure)) engine=innodb');
+$create = $dbh->prepare('create table if not exists $prefix_substructure (structure varchar(100), substructure varchar(100), count int, primary key (structure, substructure)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
-$del = $dbh->prepare('delete from substructure');
+$del = $dbh->prepare('delete from $prefix_substructure');
 $del->execute();
 }
 
@@ -539,7 +540,7 @@ sub addheuristicsnouns{
 			my @ns = split(/\|/,$n);
 			foreach my $w (@ns){
 				if($w =~ /(\w+)\[([spn])\]/){
-					  #my $sth = $dbh->prepare("insert into wordpos values(\"$w\",\"$2\",\"\",1,1)");
+					  #my $sth = $dbh->prepare("insert into $prefix_wordpos values(\"$w\",\"$2\",\"\",1,1)");
 		              #            $sth->execute();
 	    		      update($1, $2, "*", "wordpos", 0);
 	    		      #populate singularpluralpair table with Ns
@@ -573,7 +574,7 @@ sub addheuristicsnouns{
 sub  posbysuffix{
 	my($sth, $pattern, $unknownword);
 	$pattern = "^[a-z_]+(".$SUFFIX.")\$";
-	$sth = $dbh->prepare("select word from unknownwords where word rlike '$pattern' and flag= 'unknown'");
+	$sth = $dbh->prepare("select word from $prefix_unknownwords where word rlike '$pattern' and flag= 'unknown'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($unknownword) = $sth->fetchrow_array()){
 		if($unknownword =~/^(.*?)($SUFFIX)$/){
@@ -585,7 +586,7 @@ sub  posbysuffix{
 	}
 	
 	$pattern = "^[._.][a-z]+"; #, _nerved
-	$sth = $dbh->prepare("select word from unknownwords where word rlike '$pattern' and flag= 'unknown'");
+	$sth = $dbh->prepare("select word from $prefix_unknownwords where word rlike '$pattern' and flag= 'unknown'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($unknownword) = $sth->fetchrow_array()){
 		update($unknownword, "b", "*", "wordpos", 0);
@@ -622,7 +623,7 @@ sub containsuffix{
 				return 1;;
 			}
 		}
-		$sth = $dbh->prepare("select word from unknownwords where word = '$base'");
+		$sth = $dbh->prepare("select word from $prefix_unknownwords where word = '$base'");
 		$sth->execute() or warn "$sth->errstr\n";
 		return 1 if $sth->rows > 0;
 	}elsif($suffix eq "er" || $suffix eq "est"){#if WN recognize superlative, comparative adjs, return 1: e.g. er, est
@@ -636,7 +637,7 @@ sub containsuffix{
 		if($wnoutputword =~/Overview of adj/ && $wnoutputword !~/Overview of .*? Overview of/){
 			return 1;;			
 		}
-		$sth = $dbh->prepare("select word from unknownwords where word = '$base'");
+		$sth = $dbh->prepare("select word from $prefix_unknownwords where word = '$base'");
 		$sth->execute() or warn "$sth->errstr\n";
 		return 1 if $sth->rows > 0;
 	}
@@ -645,7 +646,7 @@ sub containsuffix{
 
 sub resetcounts{
 	my ($sth);
-	$sth = $dbh->prepare("update wordpos set certaintyu=0, certaintyl=0");
+	$sth = $dbh->prepare("update $prefix_wordpos set certaintyu=0, certaintyl=0");
 	$sth->execute() or warn "$sth->errstr\n";
 }
 
@@ -671,7 +672,7 @@ sub markknown{
 		$otherprefix =~ s#^\|##;
 		$spwords = "(".escape(singularpluralvariations($tmp)).")";
 		$pattern = "^(".$otherprefix.")?".$spwords."\$";
-		$sth = $dbh->prepare("select word from unknownwords where word rlike '$pattern' and flag= 'unknown'");
+		$sth = $dbh->prepare("select word from $prefix_unknownwords where word rlike '$pattern' and flag= 'unknown'");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($newword) = $sth->fetchrow_array()){
 			$sign += processnewword($newword, $pos, "*", $table, $word, 0); #6/11/09 $role => *, add 0
@@ -682,7 +683,7 @@ sub markknown{
 		$spwords = "(".escape(singularpluralvariations($word)).")";
 		$pattern = "^(".$PREFIX.")".$spwords."\$"; #$word=shrubs; $pattern = (pre|sub)shrubs
 		#print "$pattern\n";
-		$sth = $dbh->prepare("select word from unknownwords where word rlike '$pattern' and flag = 'unknown'");
+		$sth = $dbh->prepare("select word from $prefix_unknownwords where word rlike '$pattern' and flag = 'unknown'");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($newword) = $sth->fetchrow_array()){
 			$sign += processnewword($newword, $pos,"*", $table, $word, 0);
@@ -691,7 +692,7 @@ sub markknown{
 		#word_$spwords
 		$spwords = "(".escape(singularpluralvariations($word)).")";
 		$pattern = ".*_".$spwords."\$";
-		$sth = $dbh->prepare("select word from unknownwords where word rlike '$pattern' and flag = 'unknown'");
+		$sth = $dbh->prepare("select word from $prefix_unknownwords where word rlike '$pattern' and flag = 'unknown'");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($newword) = $sth->fetchrow_array()){
 			$sign += processnewword($newword, $pos,"*", $table, $word, 0);
@@ -706,13 +707,13 @@ sub singularpluralvariations{
 	my $word = shift;
 	my ($sth, $variations, $pl, $sg);
 	$variations = "$word|";
-	$sth = $dbh->prepare("select plural from singularplural where singular = '$word'");
+	$sth = $dbh->prepare("select plural from $prefix_singularplural where singular = '$word'");
 	$sth->execute() or warn "$sth->errstr\n";	
 	while(($pl) = $sth->fetchrow_array){
 		$variations .= $pl."|";
 	}
 	
-	$sth = $dbh->prepare("select singular from singularplural where plural = '$word'");
+	$sth = $dbh->prepare("select singular from $prefix_singularplural where plural = '$word'");
 	$sth->execute() or warn "$sth->errstr\n";	
 	while(($sg) = $sth->fetchrow_array){
 		$variations .= $sg."|";
@@ -737,7 +738,7 @@ sub processnewword{
 
 sub updateunknownwords{
 	my ($newword, $flag) = @_;
-	my $sth1 = $dbh->prepare("update unknownwords set flag = '$flag' where word = '$newword'");
+	my $sth1 = $dbh->prepare("update $prefix_unknownwords set flag = '$flag' where word = '$newword'");
 	$sth1->execute() or warn "$sth1->errstr\n";
 	
 }
@@ -749,17 +750,17 @@ sub updateunknownwords{
 my $NONS = ""; #4/20/09
 sub resolvenmb{
 	my ($sth, $word, $sth1, $sentid, $sentence);
-	$sth = $dbh->prepare("select word from wordpos where (word in (select word from wordpos where pos ='s') or word in (select distinct tag from sentence) )and word in (select word from wordpos where pos ='b')");
+	$sth = $dbh->prepare("select word from $prefix_wordpos where (word in (select word from $prefix_wordpos where pos ='s') or word in (select distinct tag from $prefix_sentence) )and word in (select word from $prefix_wordpos where pos ='b')");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
-		$sth1 = $dbh->prepare("select * from modifiers where word = '$word'");
+		$sth1 = $dbh->prepare("select * from $prefix_modifiers where word = '$word'");
 		$sth1->execute() or warn "$sth1->errstr\n";
 		if($sth1->rows() > 0){
 			#remove the N role
-			$sth1 = $dbh->prepare("delete from wordpos where word = '$word' and pos ='s'");
+			$sth1 = $dbh->prepare("delete from $prefix_wordpos where word = '$word' and pos ='s'");
 			$sth1->execute() or warn "$sth1->errstr\n";
 			#reset tags
-			$sth1 = $dbh->prepare("update sentence set modifier='', tag =NULL where tag ='$word' or tag like '% $word'");
+			$sth1 = $dbh->prepare("update $prefix_sentence set modifier='', tag =NULL where tag ='$word' or tag like '% $word'");
 			$sth1->execute() or warn "$sth1->errstr\n";
 			$NONS .="$word|";
 			print "$word roles reduced to M/B, 's' role removed and clauses set to NULL tag, sentences retagged\n" if $debug;
@@ -768,13 +769,13 @@ sub resolvenmb{
 	#4/20/09
 	chop($NONS);
 	#retag clauses with <N><M><B> tags
-	$sth = $dbh->prepare("select sentid, sentence from sentence where sentence like '%<N><M><B>%'");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where sentence like '%<N><M><B>%'");
 	$sth->execute() or warn "$sth->errstr\n";
 	
 	while(($sentid, $sentence) = $sth->fetchrow_array()){
 		$sentence =~ s#<[ON]><M><B>#<M><B>#g;
 		$sentence =~ s#</B></M></[ON]>#</B></M>#g;
-		$sth1 = $dbh->prepare("update sentence set sentence = '$sentence' where sentid =$sentid");
+		$sth1 = $dbh->prepare("update $prefix_sentence set sentence = '$sentence' where sentid =$sentid");
 		$sth1->execute() or warn "$sth1->errstr\n";
 	}
 	
@@ -790,7 +791,7 @@ sub adjsverification{
 	print "\n========Correct adj-singular noun markup\n" if $debug;
 	#n [bm]+ n where [bm] not proposition
 	$ptn = "^<N>([a-z]+)</N> ([^N,;.]+ <N>[a-z]+</N>)";
-	$sth = $dbh->prepare("select sentid, sentence from sentence where sentence COLLATE utf8_bin rlike '$ptn'");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where sentence COLLATE utf8_bin rlike '$ptn'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sentence, $tag, $modifier)=$sth->fetchrow_array()){
 		if($sentence =~ /$ptn/){
@@ -802,7 +803,7 @@ sub adjsverification{
 				#reset sentence tagged with $wrong NULL
 				n2m($wrong);
 				#update other words tied to $wrong in unknownwords
-				$sth1 = $dbh->prepare("select word from unknownwords where flag = '$wrong'");
+				$sth1 = $dbh->prepare("select word from $prefix_unknownwords where flag = '$wrong'");
 				$sth1->execute() or warn "$sth1->errstr\n";
 				while(($word) = $sth1->fetchrow_array()){
 					n2m($word);
@@ -815,7 +816,7 @@ sub adjsverification{
 sub isseentag{
 	my $raw = shift;
 	$raw =~ s#<\S+?>##g;
-	my $sth = $dbh->prepare("select * from sentence where tag like '$raw%'");
+	my $sth = $dbh->prepare("select * from $prefix_sentence where tag like '$raw%'");
 	$sth->execute() or warn "$sth->errstr\n";
 	if($sth->rows()>0){
 		return 1;
@@ -826,12 +827,12 @@ sub isseentag{
 sub n2m{
 	my $wrong = shift;
 	#remove $wrong from pos
-	my $sth1 = $dbh->prepare("delete from wordpos where word = '$wrong' and pos in ('s','p','n')");
+	my $sth1 = $dbh->prepare("delete from $prefix_wordpos where word = '$wrong' and pos in ('s','p','n')");
 	$sth1->execute() or warn "$sth1->errstr\n";
 	#update $wrong as an m
 	update($wrong, "m", "", "modifiers", 1);
 	#reset tag to NULL
-	$sth1 = $dbh->prepare("update sentence set tag = NULL where tag = '$wrong' or tag like '% $wrong'");
+	$sth1 = $dbh->prepare("update $prefix_sentence set tag = NULL where tag = '$wrong' or tag like '% $wrong'");
 	$sth1->execute() or warn "$sth1->errstr\n";
 	
 }
@@ -856,12 +857,12 @@ sub setandor{
 	#$ptn2="^(?:[mbq,]{0,10}(?:,|(?=&)))+&(?:[mbq,]{0,10})[onp]"; #m,m,&mn
 	
 	#step through all sentences except ones that marked 'ignore'
-	#$sth1 = $dbh->prepare("select sentid, sentence from sentence where tag !='ignore' or isnull(tag) ");
-	$sth1 = $dbh->prepare("select sentid, sentence from sentence"); #5/01/09 check 653, 6985, 6699
+	#$sth1 = $dbh->prepare("select sentid, sentence from $prefix_sentence where tag !='ignore' or isnull(tag) ");
+	$sth1 = $dbh->prepare("select sentid, sentence from $prefix_sentence"); #5/01/09 check 653, 6985, 6699
 	$sth1->execute();
 	while(($sentid, $sentence, $lead)=$sth1->fetchrow_array()){
 		if(isandorsentence($sentid, $sentence, $lead, $ptn1, $ptn2)){
-			$sth = $dbh->prepare("update sentence set tag = 'andor' where sentid = $sentid ");
+			$sth = $dbh->prepare("update $prefix_sentence set tag = 'andor' where sentid = $sentid ");
 			$sth->execute();
 		}
 	}
@@ -901,7 +902,7 @@ sub isandorsentence{
 #to null
 sub resetandor{
 	my ($sth);
-	$sth = $dbh->prepare("update sentence set tag = NULL where tag = 'andor' ");
+	$sth = $dbh->prepare("update $prefix_sentence set tag = NULL where tag = 'andor' ");
 	$sth->execute();
 }
 
@@ -935,7 +936,7 @@ sub adjectivesubjectbootstrapping{
 	}while ($flag>0);
 	#reset andor tags to null
 	print "========reset unsolvable andor to NULL\n" if $debug;
-	my $sth = $dbh->prepare("update sentence set tag = NULL where tag = 'andor' ");
+	my $sth = $dbh->prepare("update $prefix_sentence set tag = NULL where tag = 'andor' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	print "========last round of adjectivesubjects\n" if $debug;
 	#cases releazed from andor[m&mn] may be marked by adjectivesubjects
@@ -964,7 +965,7 @@ sub adjectivesubjects{
 	my $flag = 0;
 	my ($sth,$sth1, $typemodifiers, $sentence, $temp, $sentid, $word, $pos, $count, $start, $modifier, $tag, $newm);
 	#collect evidence for the usage of "modifier boundry": 
-	$sth = $dbh->prepare("select sentence from sentence where sentence regexp '<M>[^[:space:]]+</M> <B>[^,\\.].*' and (tag != 'ignore' or isnull(tag))");
+	$sth = $dbh->prepare("select $prefix_sentence from $prefix_sentence where sentence regexp '<M>[^[:space:]]+</M> <B>[^,\\.].*' and (tag != 'ignore' or isnull(tag))");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentence) = $sth->fetchrow_array()){
 		while($sentence =~ /.*?<M>(\S+)<\/M> <B>[^,\.]+<\/B> (.*)/){ #filter and collect type modifiers
@@ -973,7 +974,7 @@ sub adjectivesubjects{
 			$temp =~ s#<\S+?>##g;
 			if($typemodifiers !~ /\b$temp\b/i){
 				$typemodifiers .= $temp."|"; 
-				$sth1 = $dbh->prepare("update modifiers set istypemodifier = 1 where word = '$temp'");
+				$sth1 = $dbh->prepare("update $prefix_modifiers set istypemodifier = 1 where word = '$temp'");
 				$sth1->execute() or warn "$sth1->errstr\n";
 			}			
 		}
@@ -981,7 +982,7 @@ sub adjectivesubjects{
 	chop($typemodifiers);
 	print "type modifiers: $typemodifiers\n" if $debug;
 	#process "typemodifier unknown" patterns: 
-	$sth = $dbh->prepare("select sentid, sentence from sentence where (isnull(tag) or tag ='' or tag='unknown') and sentence regexp '<M>[^[:space:]]*($typemodifiers)[^[:space:]]*</M> .*'"); #<m><b>basal<\b><\m>
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where (isnull(tag) or tag ='' or tag='unknown') and sentence regexp '<M>[^[:space:]]*($typemodifiers)[^[:space:]]*</M> .*'"); #<m><b>basal<\b><\m>
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sentence) = $sth->fetchrow_array()){
 		my $count = 0;
@@ -1024,7 +1025,7 @@ sub adjectivesubjects{
 					$modifier =~ s#<\S+?>##g;
 					$modifier .= " ".$m if $m =~/\w/;
 					tagsentwmt($sentid, $sentence, $modifier, $tag, "adjectivesubject[M-B,]");
-					#$sth1 = $dbh->prepare("update sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
+					#$sth1 = $dbh->prepare("update $prefix_sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
 					#$sth1->execute() or warn "$sth1->errstr\n";
 					#print "use [$modifier/$tag] to mark up sentence: ".$sentid."\n" if $debug; 
 					$count++;
@@ -1061,7 +1062,7 @@ sub adjectivesubjects{
 					$modifier =~ s#<\S+?>##g;
 					$word =~ s#<\S+?>##g;
 					tagsentwmt($sentid, $sentence, $modifier, $word, "adjectivesubject[M-N]");
-					#$sth1 = $dbh->prepare("update sentence set modifier = '$modifier', tag = '$word' where sentid = $sentid");
+					#$sth1 = $dbh->prepare("update $prefix_sentence set modifier = '$modifier', tag = '$word' where sentid = $sentid");
 					#$sth1->execute() or warn "$sth1->errstr\n";
 					#print "use [$modifier/$word] to mark up sentence: ".$sentid."\n" if $debug; #TODO: increase count for modidifier
 					#new modifier
@@ -1084,7 +1085,7 @@ sub adjectivesubjects{
 					my ($m,$tag) = getpartsfromparenttag($tag);
 					$modifier .= " ".$m if $m =~/\w/;
 					tagsentwmt($sentid, $sentence, $modifier, $tag, "adjectivesubject[M-B]");
-					#$sth1 = $dbh->prepare("update sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
+					#$sth1 = $dbh->prepare("update $prefix_sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
 					#$sth1->execute() or warn "$sth1->errstr\n";
 					#print "use [$modifier/$tag] to mark up sentence: ".$sentid."\n" if $debug;
 					#new modifier
@@ -1107,7 +1108,7 @@ return $flag;
 sub discovernewmodifiers{	#each modifier is one word
 	my ($sth, $sentid, $sentence, $sth1, $sign, $pos);
 	#"modifier and/or unknown boundary" pattern 
-	$sth = $dbh->prepare("select sentid, sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence regexp '<M>[^[:space:]]+</M> (or|and|and / or|or / and) .*'");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence regexp '<M>[^[:space:]]+</M> (or|and|and / or|or / and) .*'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sentence) = $sth->fetchrow_array()){
 		$pos="";
@@ -1131,7 +1132,7 @@ sub discovernewmodifiers{	#each modifier is one word
 				my ($m,$tag) = getpartsfromparenttag($tag);
 				$modifier .= " ".$m if $m =~/\w/;
 				tagsentwmt($sentid, $sentence, $modifier, $tag, "discovernewmodifiers");
-				#$sth1 = $dbh->prepare("update sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
+				#$sth1 = $dbh->prepare("update $prefix_sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
 				#$sth1->execute() or warn "$sth1->errstr\n";
 				#print "use [$modifier/$tag] to mark up sentence: ".$sentence."\n" if $debug;
 			}
@@ -1143,7 +1144,7 @@ sub discovernewmodifiers{	#each modifier is one word
 		} 		
 	}
 	#"unknown and/or modifier boundary"
-	$sth = $dbh->prepare("select sentid, sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence regexp '[^[:space:]]+ (and|or|nor|and / or|or / and) <M>[^[:space:]]+</M> .*'");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence regexp '[^[:space:]]+ (and|or|nor|and / or|or / and) <M>[^[:space:]]+</M> .*'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sentence) = $sth->fetchrow_array()){
 		$pos = "";
@@ -1166,7 +1167,7 @@ sub discovernewmodifiers{	#each modifier is one word
 			my ($m,$tag) = getpartsfromparenttag($tag);
 			$modifier .= " ".$m if $m =~/\w/;
 			tagsentwmt($sentid, $sentence, $modifier, $tag, "discovernewmodifiers");
-			#$sth1 = $dbh->prepare("update sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
+			#$sth1 = $dbh->prepare("update $prefix_sentence set modifier = '$modifier', tag = '$tag' where sentid = $sentid");
 			#$sth1->execute() or warn "$sth1->errstr\n";
 			#print "use [$modifier/$tag] to mark up sentence: ".$sentence."\n" if $debug;
 		}elsif($sentence =~/(\w+) (and|or|nor|and \/ or|or \/ and) <M>(\S+)<\/M> <B>[^,:;\.]/){
@@ -1190,13 +1191,13 @@ sub changePOS{
 	print "change pos of [$word] from $oldpos to $newpos, with increment $increment\n" if $debug;
 	if($oldpos =~ /s/ && $newpos=~/m/){ #s2m, 
 		#remove its "s" pos from wordpos table
-		#$sth = $dbh->prepare("delete from wordpos where word = '$word' and pos = '$oldpos'");
+		#$sth = $dbh->prepare("delete from $prefix_wordpos where word = '$word' and pos = '$oldpos'");
 		#$sth->execute() or warn "$sth->errstr\n";
 		discount($word, $oldpos, $newpos, "all");
 		$sign +=  markknown($word, "m", "", "modifiers", $increment);
 		
 		#all sentences tagged with $word (m), retag by finding their parent tag. #4/7/09 tocheck
-		$sth = $dbh->prepare("select sentid, modifier, tag, sentence from sentence where tag = '$word'");
+		$sth = $dbh->prepare("select sentid, modifier, tag, sentence from $prefix_sentence where tag = '$word'");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($sentid, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 			$tag = getparentsentencetag($sentid);
@@ -1208,42 +1209,42 @@ sub changePOS{
 		}
 	}elsif($oldpos =~ /s/ && $newpos=~/b/){#s2b
 		#update pos table
-		$sth = $dbh->prepare("select certaintyu from wordpos where word='$word' and pos='$oldpos' ");
+		$sth = $dbh->prepare("select certaintyu from $prefix_wordpos where word='$word' and pos='$oldpos' ");
     	$sth->execute();
     	my ($certaintyu) = $sth->fetchrow_array();
     	#$certaintyu++; #6/11/09
     	$certaintyu += $increment;
     	discount($word, $oldpos, $newpos, "all");
-    	$sth = $dbh->prepare("insert into wordpos values ('$word', '$newpos', '$role', $certaintyu, 0)");
+    	$sth = $dbh->prepare("insert into $prefix_wordpos values ('$word', '$newpos', '$role', $certaintyu, 0)");
     	$sth->execute() or warn "$sth->errstr\n";;
 		print "\t: change [$word($oldpos => $newpos)] role=>$role\n" if $debug;
 		$sign++;		
 		#all sentences tagged with $word (b), retag.
-		$sth = $dbh->prepare("select sentid, modifier, tag, sentence from sentence where tag = '$word'");
+		$sth = $dbh->prepare("select sentid, modifier, tag, sentence from $prefix_sentence where tag = '$word'");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($sentid, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 			tagsentwmt($sentid, $sentence, "", "NULL", "changePOS[s->b: reset to NULL]");
 		}
 	}elsif($oldpos =~ /b/ && $newpos=~/s/){#b2s
 		#update pos table
-		$sth = $dbh->prepare("select certaintyu from wordpos where word='$word' and pos='$oldpos' ");
+		$sth = $dbh->prepare("select certaintyu from $prefix_wordpos where word='$word' and pos='$oldpos' ");
     	$sth->execute();
     	my ($certaintyu) = $sth->fetchrow_array();
     	#$certaintyu++; #6/11/09
     	$certaintyu += $increment;
     	discount($word, $oldpos, $newpos, "all");
-    	$sth = $dbh->prepare("insert into wordpos values ('$word', '$newpos', '$role', $certaintyu, 0)");
+    	$sth = $dbh->prepare("insert into $prefix_wordpos values ('$word', '$newpos', '$role', $certaintyu, 0)");
     	$sth->execute() or warn "$sth->errstr\n";
 		print "\t: change [$word($oldpos => $newpos)] role=>$role\n" if $debug;
 		$sign++;		
 	}
 	
 	#update certaintyl = sum (certaintyu)
-	$sth = $dbh->prepare("select sum(certaintyu) from wordpos where word=\"$word\"");
+	$sth = $dbh->prepare("select sum(certaintyu) from $prefix_wordpos where word=\"$word\"");
     $sth->execute();
 	my ($certaintyl) = $sth->fetchrow_array();
 	if(defined $certaintyl && $certaintyl >0){
-		$sth = $dbh->prepare("update wordpos set certaintyl=$certaintyl where word=\"$word\"");
+		$sth = $dbh->prepare("update $prefix_wordpos set certaintyl=$certaintyl where word=\"$word\"");
     	$sth->execute();
 		print "\t: total occurance of [$word] =$certaintyl\n" if $debug;
 	}
@@ -1258,12 +1259,12 @@ sub getparentsentencetag{
 	my $sentid = shift;
 	my ($sth, $modifier, $tag, $thissent);
 	#first check the originalsent of $sentid starts with a [a-z\d]
-	$sth = $dbh->prepare("select originalsent from sentence where sentid = $sentid");
+	$sth = $dbh->prepare("select originalsent from $prefix_sentence where sentid = $sentid");
 	$sth->execute() or warn "$sth->errstr\n";
 	($thissent) = $sth->fetchrow_array(); #take the tag of the first sentence
 	if($thissent =~/^\s*[^A-Z]/){
 		#for the following regexp to work, need to change originalsent's collate to latin1_general_cs (cs for case sensitive)
-		$sth = $dbh->prepare("select modifier, tag from sentence where (tag != 'ignore' or isnull(tag)) and (originalsent COLLATE utf8_bin regexp '^[A-Z].*' or originalsent rlike ': *\$') and sentid < $sentid order by sentid desc");
+		$sth = $dbh->prepare("select modifier, tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and (originalsent COLLATE utf8_bin regexp '^[A-Z].*' or originalsent rlike ': *\$') and sentid < $sentid order by sentid desc");
 		$sth->execute() or warn "$sth->errstr\n";
 		($modifier, $tag) = $sth->fetchrow_array(); #take the tag of the first sentence
 		$tag = $modifier." ".$tag if $modifier =~/\w/;
@@ -1324,7 +1325,7 @@ sub andor{
 	#(?:(?:((?:[mq],?&?)*(?:m|q(?=p)))?)((?:[np],?&?)*[np]),?)*&?(?:((?:[mq],?&?)*(?:m|q(?=p)))?)((?:[np],?&?)*[np])([,;:.]?$|,?b|,?(?<=p)q)
 	print "\nto match pattern $ANDORPTN\n" if $debug;
 	
-	$sth1 = $dbh->prepare("select sentid, sentence from sentence where tag ='andor' ");
+	$sth1 = $dbh->prepare("select sentid, sentence from $prefix_sentence where tag ='andor' ");
 	$sth1->execute();
 	while(($sentid, $sentence)=$sth1->fetchrow_array()){
 		$sign += andortag($sentid, $sentence, $SEGANDORPTN, $ANDORPTN);# if isandorsentence($sentence);
@@ -1432,7 +1433,7 @@ sub andortag{
 				$tag =~ s#^\s+##g;
 				$tag =~ s#\s+$##g;
 				tagsentwmt($sentid, $sentence, "", $tag, "andor[n&n]");
-				#$sth2 = $dbh->prepare("update sentence set tag = '$tag', modifier = '' where sentid = ".$sentid);
+				#$sth2 = $dbh->prepare("update $prefix_sentence set tag = '$tag', modifier = '' where sentid = ".$sentid);
 				#$sth2->execute();
 				#print "Andor determine the tag [$tag] and modifier [$modifier] for: $sentence\n" if $debug;
 			}else{
@@ -1459,7 +1460,7 @@ sub andortag{
 				$modifier .= " ".join (" ", splice(@twords, 0 , @twords-1)); 
 				$tag = $twords[@twords-1];
 				tagsentwmt($sentid, $sentence, $modifier, $tag, "andor[m&mn]");
-				#$sth2 = $dbh->prepare("update sentence set tag = '$tag', modifier = '$modifier' where sentid = ".$sentid);
+				#$sth2 = $dbh->prepare("update $prefix_sentence set tag = '$tag', modifier = '$modifier' where sentid = ".$sentid);
 				#$sth2->execute();
 				#print "Andor determine the tag [$tag] and modifier [$modifier] for: $sentence\n" if $debug;
 			}else{
@@ -1511,7 +1512,7 @@ sub andortag{
 		}	
 	}elsif($ptn =~ /^b+&b+[,:;\.]/){ #deal with b+&b+[,:;\.] =>ditto
 			tagsentwmt($sentid, $sentence, "", "ditto", "andor");
-			#$sth2 = $dbh->prepare("update sentence set tag = 'ditto', modifier = '' where sentid = ".$sentid);
+			#$sth2 = $dbh->prepare("update $prefix_sentence set tag = 'ditto', modifier = '' where sentid = ".$sentid);
 			#$sth2->execute();
 			#print "Andor determine the tag [ditto] and modifier [] for: $sentence\n" if $debug;
 	}else{
@@ -1592,7 +1593,7 @@ sub commaand{
 	#my $phraseptn = $mphraseptn.$nphraseptn;#4/26/09 put in \s
 	#$ptn = $phraseptn."\\s*<B>,</B>\\s*(?:".$phraseptn."| |,)+";
 	
-	my $q = "select sentid, sentence from sentence"; 
+	my $q = "select sentid, sentence from $prefix_sentence"; 
 	$sth = $dbh->prepare($q);
 	$sth->execute() or warn "$sth->errstr\n";
 		
@@ -1654,8 +1655,8 @@ sub unknownwordbootstrapping{
 		$new = 0;
 		$o = ""; $b = ""; 
 		$m = "";
-		#my $q = "select word from unknownwords where flag ='unknown' and (word rlike '($PLENDINGS)\$' or word rlike '$plmiddle' )";
-		my $q = "select word from unknownwords where flag ='unknown' and (word rlike '($PLENDINGS|ium)\$' or word rlike '$plmiddle' )"; #3/21/09
+		#my $q = "select word from $prefix_unknownwords where flag ='unknown' and (word rlike '($PLENDINGS)\$' or word rlike '$plmiddle' )";
+		my $q = "select word from $prefix_unknownwords where flag ='unknown' and (word rlike '($PLENDINGS|ium)\$' or word rlike '$plmiddle' )"; #3/21/09
 		$sth = $dbh->prepare($q);
 		$sth->execute() or warn "$sth->errstr\n";
 		
@@ -1667,7 +1668,7 @@ sub unknownwordbootstrapping{
 				$o .= $word."|" if ($o !~ /\b$word\b/ && $word !~/\b($FORBIDDEN)\b/);
 				print "unknownwordbootstrapping: find a [s] $word\n" if $debug;
 			}else{
-				$sth1 = $dbh->prepare("select * from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )$word (<B>|$FORBIDDEN)'"); #covers <b>[punct]
+				$sth1 = $dbh->prepare("select * from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )$word (<B>|$FORBIDDEN)'"); #covers <b>[punct]
 				$sth1->execute() or warn "$sth1->errstr\n";
 				if($sth1->rows() >= 1 && getnumber($word) eq "p" && ! verbending($word)){
 					update($word,"p", "-", "wordpos", 1);
@@ -1681,7 +1682,7 @@ sub unknownwordbootstrapping{
 		
 		#then find $word <q> and make q a b
 		if($o =~/\w/){
-			$sth = $dbh->prepare("select sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )($o) [^<]'");
+			$sth = $dbh->prepare("select sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )($o) [^<]'");
 			$sth->execute() or warn "$sth->errstr\n";
 			
 			while(($sentence) = $sth->fetchrow_array()){
@@ -1697,7 +1698,7 @@ sub unknownwordbootstrapping{
 		
 			#then find <q> $word, and make q a modifier
 		
-			$sth = $dbh->prepare("select sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '[^<]+ ($o) '");
+			$sth = $dbh->prepare("select sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '[^<]+ ($o) '");
 			$sth->execute() or warn "$sth->errstr\n";
 			
 			while(($sentence) = $sth->fetchrow_array()){
@@ -1727,7 +1728,7 @@ sub unknownwordbootstrapping{
 		
 		#update the tagging of relevant sentences.
 		if($new>0 && $all=~/\w/){
-			my $q= "select sentid, sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )($all) '";
+			my $q= "select sentid, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )($all) '";
 			#print stderr "$q\n";
 			$sth = $dbh->prepare($q);
 			$sth->execute() or warn "$sth->errstr\n";
@@ -1735,14 +1736,14 @@ sub unknownwordbootstrapping{
 			while(($sentid, $sentence) = $sth->fetchrow_array()){
 				#$sentence = annotateSent($sentence, "", $o, $m, $b, "");
 				$sentence = annotateSent($sentence, "", $o, "", $b, "");
-				$sth1 = $dbh->prepare("update sentence set sentence ='$sentence' where sentid =".$sentid);
+				$sth1 = $dbh->prepare("update $prefix_sentence set sentence ='$sentence' where sentid =".$sentid);
 				$sth1->execute() or warn "$sth1->errstr\n";
 			}	
 		}
 	}while($new > 0);
 	
 	#pistillate_zone
-	my $q = "select word from wordpos where pos in ('s','p')";
+	my $q = "select word from $prefix_wordpos where pos in ('s','p')";
 	$sth = $dbh->prepare($q);
 	$sth->execute() or warn "$sth->errstr\n";
 	my $nouns = "";
@@ -1752,7 +1753,7 @@ sub unknownwordbootstrapping{
 	chop($nouns);
 
 	$b = "";	
-	$q = "select word from unknownwords where flag ='unknown' and word like '%\\_%'";
+	$q = "select word from $prefix_unknownwords where flag ='unknown' and word like '%\\_%'";
 	$sth = $dbh->prepare($q);
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
@@ -1764,12 +1765,12 @@ sub unknownwordbootstrapping{
 	chop($b);
 	
 	if($b=~ /\w/){
-		$sth = $dbh->prepare("select sentid, sentence from sentence  where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )($b) '");
+		$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence  where (tag != 'ignore' or isnull(tag)) and sentence rlike '(^| )($b) '");
 		$sth->execute() or warn "$sth->errstr\n";
 			
 		while(($sentid, $sentence) = $sth->fetchrow_array()){
 				$sentence = annotateSent($sentence, "", "", "", $b, "");
-				$sth1 = $dbh->prepare("update sentence set sentence ='$sentence' where sentid =".$sentid);
+				$sth1 = $dbh->prepare("update $prefix_sentence set sentence ='$sentence' where sentid =".$sentid);
 				$sth1->execute() or warn "$sth1->errstr\n";
 		}	
 	}
@@ -1786,7 +1787,7 @@ sub verbending{
 	}
 	
 	$sword = '(^|_)'.$sword."ing";
-	my $sth = $dbh->prepare("select word from unknownwords where word rlike '$sword\$' ");
+	my $sth = $dbh->prepare("select word from $prefix_unknownwords where word rlike '$sword\$' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	if($sth->rows() > 0){
 		print "for unknownwordbootstrapping: found verb ending words with the same root as $pword\n" if $debug;
@@ -1807,14 +1808,14 @@ sub resolvesentencetags{
 	untagsentences();
 	tagallsentence("multitags");
 	
-	$sth = $dbh->prepare("select word from modifiers where istypemodifier = 1");
+	$sth = $dbh->prepare("select word from $prefix_modifiers where istypemodifier = 1");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
 		$typemodifiers .= $word."|";
 	}
 	chop($typemodifiers);
 	
-	$sth = $dbh->prepare("select sentid, sentence from sentence where (tag != 'ignore' or isnull(tag))");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag))");
 	$sth->execute() or warn "$sth->errstr\n";
 	
 			
@@ -1822,7 +1823,7 @@ sub resolvesentencetags{
 		$sentence =~ s#><##g;
 		$sentence =~ s#></##g; #<M><B>xxx</M></B> => <MB>xxx</MB>
 		$sentence = filteredbycontext($sentence, $typemodifiers);
-		$sth1 = $dbh->prepare("update sentence set sentence ='$sentence' where sentid =".$sentid);
+		$sth1 = $dbh->prepare("update $prefix_sentence set sentence ='$sentence' where sentid =".$sentid);
 		$sth1->execute() or warn "$sth1->errstr\n";
 	}	
 }
@@ -1961,7 +1962,7 @@ sub ditto{
 	#3/24/09
 	my ($sth, $sentid, $sentence, $head, $modifier, $tag, $sth2);
 
-	$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag)");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag)");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 		
 	while(($sentid, $sentence) = $sth->fetchrow_array()){ #$sentence is tagged with <[mbn]>
@@ -2011,7 +2012,7 @@ sub ditto{
 	#$wptn = "(?:.*?)"; #text pattern
 	#$ptn = "^".$conj."?".$bptn.$wptn.$bptn.$conj."*"; #sentence starts with at least 3 boundary words
 	
-	#$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag)");
+	#$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag)");
 	#$sth->execute() or  warn "$sth->errstr\n"; 
 		
 	#while(($sentid, $sentence) = $sth->fetchrow_array()){ #$sentence is tagged with <[mbn]>
@@ -2037,7 +2038,7 @@ sub ditto{
 sub phraseclause{ 
 	my ($sth, $sentid, $sentence, $head, $modifier, $tag, $sth2);
 
-	$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag)");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag)");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 		
 	while(($sentid, $sentence) = $sth->fetchrow_array()){ #$sentence is tagged with <[mbn]>
@@ -2116,7 +2117,7 @@ sub of{
 	my($n, $o, $m, $b, $b1) = knowntags("singletag");
 	#$CLUSTERSTRINGS = "clusters|cluster|arrays|array|series|fascicles|fascicle|pairs|pair";
 	
-	$sth = $dbh->prepare("select sentid, modifier, tag, sentence, originalsent from sentence where sentence like '%>of<%'"); #5/11/09: take out "(tag != 'ignore' or isnull(tag)) and" check 27, 256, 1476, 6829, 7203
+	$sth = $dbh->prepare("select sentid, modifier, tag, sentence, originalsent from $prefix_sentence where sentence like '%>of<%'"); #5/11/09: take out "(tag != 'ignore' or isnull(tag)) and" check 27, 256, 1476, 6829, 7203
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	
 	while(($sentid, $modifier, $tag, $sentence, $originalsent) = $sth->fetchrow_array()){
@@ -2132,7 +2133,7 @@ sub of{
 					$tag =~ s#(^\s*|\s*$)##g;
 					$modifier =~ s#(^\s*|\s*$)##g;
 					tagsentwmt($sentid, $sentence, $modifier, $tag, "Of[C4: clusters]");
-					#$sth1 = $dbh->prepare("update sentence set tag = '$tag', modifier='$modifier' where sentid = $sentid");
+					#$sth1 = $dbh->prepare("update $prefix_sentence set tag = '$tag', modifier='$modifier' where sentid = $sentid");
 					#$sth1->execute() or warn "$sth1->errstr\n";
 					#print "In Of[C4: clusters]: change tag to <$tag>, modifier to <$modifier> to [$sentence]\n\n" if $debug;
 				}
@@ -2156,7 +2157,7 @@ sub of{
 #consider to replace this with truemodifiers() 4/15/09
 sub gettypemodifierptn{
 	my($sth, $type, $tm);
-	$sth = $dbh->prepare("select word from modifiers where istypemodifier = 1");
+	$sth = $dbh->prepare("select word from $prefix_modifiers where istypemodifier = 1");
 	$sth->execute() or  warn "$sth->errstr\n";
 	while(($tm)=$sth->fetchrow_array()){
 		$type .=$tm."|";
@@ -2240,7 +2241,7 @@ sub caseonentwo{
 			$modifier =~ s#\s+# #g;
 			$modifier =~ s#(^\s*|\s*$)##g; 
 			tagsentwmt($sentid, $originalsent, $modifier, $tag, "Of [C1:s1=$struct1 s2=$struct2 subs=$substruct]");
-			#$sth1 = $dbh->prepare("update sentence set tag = '$tag', modifier='$modifier' where sentid = $sentid");
+			#$sth1 = $dbh->prepare("update $prefix_sentence set tag = '$tag', modifier='$modifier' where sentid = $sentid");
 			#$sth1->execute() or warn "$sth1->errstr\n";
 			#print "In Of [C1:s1=$struct1 s2=$struct2 subs=$substruct]: change tag to <$tag>, modifier to <$modifier> to [$originalsent]\n\n" if $debug;
 		}else{ #case two or cannot determine substructure
@@ -2261,13 +2262,13 @@ sub updatesubstructure{
 	$struct =~ s#(^\s*|\s*$)##g;
 	$struct =~ s#[\[\]]##g;
 	return if $substruct !~ /\w/ or $struct !~ /\w/;
-	$sth = $dbh->prepare("select * from substructure where substructure = '$substruct' and structure='$struct' ");
+	$sth = $dbh->prepare("select * from $prefix_substructure where substructure = '$substruct' and structure='$struct' ");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() >= 1){
-		$sth = $dbh->prepare("update substructure set count = count+1 where substructure = '$substruct' and structure='$struct' ");
+		$sth = $dbh->prepare("update $prefix_substructure set count = count+1 where substructure = '$substruct' and structure='$struct' ");
 		$sth->execute() or  warn "$sth->errstr\n"; 
 	}else{
-		$sth = $dbh->prepare("insert into substructure values ('$struct', '$substruct', 1) ");
+		$sth = $dbh->prepare("insert into $prefix_substructure values ('$struct', '$substruct', 1) ");
 		$sth->execute() or  warn "$sth->errstr\n"; 	
 	}
 }
@@ -2297,11 +2298,11 @@ sub choosesubstructure{
 	$struct2 =~ s#^.* (\w+)$#\1#;
 	
 	#check substructure table
-	$sth = $dbh->prepare("select * from substructure where substructure = '$struct1' and structure='$struct2' ");
+	$sth = $dbh->prepare("select * from $prefix_substructure where substructure = '$struct1' and structure='$struct2' ");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() > 0){ return $s1;}
 	
-	$sth = $dbh->prepare("select * from substructure where substructure = '$struct2' and structure='$struct1' ");
+	$sth = $dbh->prepare("select * from $prefix_substructure where substructure = '$struct2' and structure='$struct1' ");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() > 0){ return $s2;}
 	
@@ -2324,27 +2325,27 @@ sub choosesubstructure{
 	$struct2r =~ s#\\\\\]\?#\\]?#g;
 	
 	#check evidence 1: n-n tags
-	my $q = "select * from sentence where (tag != 'ignore' or isnull(tag)) and (modifier rlike ' $struct1\$' or modifier rlike '^$struct1\$') and tag rlike '$struct2' ";
+	my $q = "select * from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and (modifier rlike ' $struct1\$' or modifier rlike '^$struct1\$') and tag rlike '$struct2' ";
 	$sth = $dbh->prepare($q);
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() >= 1){
 		return $s2;
 	}
 	
-	$sth = $dbh->prepare("select * from sentence where (tag != 'ignore' or isnull(tag)) and (modifier rlike ' $struct2\$' or modifier rlike '^$struct2\$') and tag rlike '$struct1' ");
+	$sth = $dbh->prepare("select * from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and (modifier rlike ' $struct2\$' or modifier rlike '^$struct2\$') and tag rlike '$struct1' ");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() >= 1){
 		return $s1;
 	}
 
 	#check evidence 0: n-n phrase
-	my $q = "select * from sentence where (tag != 'ignore' or isnull(tag)) and originalsent rlike '$struct1 $struct2' ";
+	my $q = "select * from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and originalsent rlike '$struct1 $struct2' ";
 	$sth = $dbh->prepare($q);
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() >= 1){
 		return $s2;
 	}
-	$q = "select * from sentence where (tag != 'ignore' or isnull(tag)) and  originalsent rlike '$struct2 $struct1' ";
+	$q = "select * from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and  originalsent rlike '$struct2 $struct1' ";
 	$sth = $dbh->prepare($q);
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	if($sth->rows() >= 1){
@@ -2356,7 +2357,7 @@ sub choosesubstructure{
 	#<n>pappi</n> <b>fuscous</b> to <b>purplish</b> , <m>outer</m> scales  <b>25 – 30 , <</b> b> <b>0</</b> b> .  <b>2 – <</b> b> <b>1</</b> b> mm , contrasting <b>with</b>  <b>35 – 40 + , 5 – 7 + </b> mm <m>inner</m> <b>bristles</b> .
 	#
 	my $ptn = "(<[A-Z]>)*".$struct1."(</[A-Z]>)* <B>with</B> .* ?(<[A-Z]>)*".$struct2."(</[A-Z]>)*";
-	$sth = $dbh->prepare("select sentence from sentence where  (tag != 'ignore' or isnull(tag)) and  sentence rlike '$ptn' ");
+	$sth = $dbh->prepare("select sentence from $prefix_sentence where  (tag != 'ignore' or isnull(tag)) and  sentence rlike '$ptn' ");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	while(($sentence) = $sth->fetchrow_array()){
 		#$struct1 and 2 are grouped.
@@ -2370,7 +2371,7 @@ sub choosesubstructure{
 	}
 	
 	$ptn = "(<[A-Z]>)*$struct2(</[A-Z]>)* <b>with</b> .* ?(<[A-Z]>)*$struct1(</[A-Z]>)*";
-	$sth = $dbh->prepare("select sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '$ptn' ");
+	$sth = $dbh->prepare("select sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '$ptn' ");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	while(($sentence) = $sth->fetchrow_array()){
 		if($sentence =~ /(?:<[A-Z]>)*\b$struct2r\b(?:<\/[A-Z]>)* <B>with<\/B> (.*) ?(?:<[A-Z]>)*\b$struct1r\b(?:<\/A-Z]>)*/i){
@@ -2385,7 +2386,7 @@ sub choosesubstructure{
 	#evidence 3: clause-subclauses:  , <n> </n>
 	#$ptn = "[,:;]</B> .* ? (<[A-Z]>)*$struct2(</[A-Z]>)*";
 	$ptn = "[,:;]</B> (<[A-Z]>)*$struct2(</[A-Z]>)*";
-	$sth = $dbh->prepare("select sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '$ptn' and tag rlike '$struct1'");
+	$sth = $dbh->prepare("select sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '$ptn' and tag rlike '$struct1'");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	while(($sentence) = $sth->fetchrow_array()){
 		if($sentence =~ /[,:;]<\/B> (<[A-Z]>)*\b$struct2r\b(<\/[A-Z]>)*/i){
@@ -2398,7 +2399,7 @@ sub choosesubstructure{
 	}
 	
 	$ptn = "[,:;]</B> (<[A-Z]>)*$struct1(</[A-Z]>)*";
-	$sth = $dbh->prepare("select sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '$ptn' and tag rlike '$struct2'");
+	$sth = $dbh->prepare("select sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence rlike '$ptn' and tag rlike '$struct2'");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	while(($sentence) = $sth->fetchrow_array()){
 		if($sentence =~ /[,:;]<\/B> (<[A-Z]>)*\b$struct1r\b(<\/[A-Z]>)*/i){
@@ -2410,7 +2411,7 @@ sub choosesubstructure{
 		}
 	}
 	#evidence 4: sentence-clauses 
-	$sth = $dbh->prepare("select sentid from sentence where (tag != 'ignore' or isnull(tag)) and tag rlike '$struct2'");
+	$sth = $dbh->prepare("select sentid from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag rlike '$struct2'");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	while(($sentid) = $sth->fetchrow_array()){
 		my $parenttag = getparentsentencetag($sentid);
@@ -2419,7 +2420,7 @@ sub choosesubstructure{
 		}
 	}
 	
-	$sth = $dbh->prepare("select sentid from sentence where (tag != 'ignore' or isnull(tag)) and tag rlike '$struct1'");
+	$sth = $dbh->prepare("select sentid from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag rlike '$struct1'");
 	$sth->execute() or  warn "$sth->errstr\n"; 
 	while(($sentid) = $sth->fetchrow_array()){
 		my $parenttag = getparentsentencetag($sentid);
@@ -2453,7 +2454,7 @@ sub commonsubstructure{
 	
 	print "\n Common substructures: $common\n" if $debug;
 	$ptn = "\\\\[?(".$common.")\\\\]?";
-	$sth = $dbh->prepare("select sentid, modifier, tag, sentence from sentence where (tag != 'ignore' or isnull(tag)) and tag rlike '^$ptn\$'");
+	$sth = $dbh->prepare("select sentid, modifier, tag, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag rlike '^$ptn\$'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 		if(!modifiercontainsstructure($modifier) && $tag !~/\[/){ 
@@ -2476,9 +2477,9 @@ sub commonsubstructure{
 					$modifier = $ptag." ".$modifier; #main marginal/spine => [leaf blade] main marginal/spine					
 				}
 				tagsentwmt($sentid, $sentence, $modifier, $tag, "commonsubstructure");
-				#$sth1 = $dbh->prepare("update sentence set modifier = '$modifier' where sentid =$sentid ");
+				#$sth1 = $dbh->prepare("update $prefix_sentence set modifier = '$modifier' where sentid =$sentid ");
 				#$sth1->execute() or warn "$sth1->errstr\n";
-				#print "update sentence $sentid modifier ($mcopy, tag=$tag) with its parent tag $parentstructure to ($modifier)\n" if $debug;
+				#print "update $prefix_sentence $sentid modifier ($mcopy, tag=$tag) with its parent tag $parentstructure to ($modifier)\n" if $debug;
 			}
 		}
 	}
@@ -2490,7 +2491,7 @@ sub isatypemodifier{
 	my ($sth, @words, $w);
 	@words = split(/\s+/, $word);
 	$w = $words[@words-1];
-	$sth = $dbh->prepare("select * from modifiers where word = '$w' and istypemodifier = 1");
+	$sth = $dbh->prepare("select * from $prefix_modifiers where word = '$w' and istypemodifier = 1");
 	$sth->execute() or warn "$sth->errstr\n";
 	while($sth->rows() > 0){
 		return 1;
@@ -2504,7 +2505,7 @@ sub modifiercontainsstructure{
 	@w = split(/\s+/, $m);
 	foreach $w (@w){
 		$w =~ s#\W##g; #remove []
-		$sth = $dbh->prepare("select * from wordpos where pos in ('s', 'p') and word = '$w'");
+		$sth = $dbh->prepare("select * from $prefix_wordpos where pos in ('s', 'p') and word = '$w'");
 		$sth->execute() or warn "$sth->errstr\n";
 		if($sth->rows() > 0){
 			return 1;
@@ -2517,17 +2518,17 @@ sub modifiercontainsstructure{
 sub collectcommonstructures{
 	my ($sth, $common, $tag, $modifier, $sth1, $count, $word, $allstructure);
 	
-	$sth = $dbh->prepare("select word from wordpos where pos in ('s','p') and word not in (select word from wordpos where pos ='b') ");
+	$sth = $dbh->prepare("select word from $prefix_wordpos where pos in ('s','p') and word not in (select word from $prefix_wordpos where pos ='b') ");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
 		$allstructure .= $word."|";
 	}
 	chop($allstructure);
 	
-	$sth = $dbh->prepare("select tag from sentence where (tag != 'ignore' or isnull(tag)) and tag not like '% %' and tag not like '%[%' group by tag having count( distinct modifier) > 1");
+	$sth = $dbh->prepare("select tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag not like '% %' and tag not like '%[%' group by tag having count( distinct modifier) > 1");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($tag) = $sth->fetchrow_array()){
-		$sth1 = $dbh->prepare("select distinct modifier from sentence where tag = '$tag'");
+		$sth1 = $dbh->prepare("select distinct modifier from $prefix_sentence where tag = '$tag'");
 		$sth1->execute() or warn "$sth->errstr\n";
 		$count = 0;
 		while(($modifier) = $sth1->fetchrow_array()){
@@ -2560,7 +2561,7 @@ sub pronouncharactersubject{
 	my $t = "(?:<\/?[A-Z]>)?";
 	my $t = "(?:<\/?[A-Z]+>)?"; #3/21/09
 	$charptn = '('.$CHARACTER.')';
-	$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from sentence where (tag != 'ignore' or isnull(tag)) and lead rlike '(^| )$charptn( |\$)' or tag rlike '(^| )$charptn( |\$)' ");
+	$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and lead rlike '(^| )$charptn( |\$)' or tag rlike '(^| )$charptn( |\$)' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $lead, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 		$sentcopy = $sentence;
@@ -2607,7 +2608,7 @@ sub pronouncharactersubject{
 		#	my @mcopy = split("/\s+/", $modifier);
 		#	my $word = $mcopy[@mcopy-1];
 		#	$word =~ s#[\[\]]##g;
-		#	$sth1 = $dbh->prepare("select * from wordpos where word = '$word' and pos in ('s', 'p') ");
+		#	$sth1 = $dbh->prepare("select * from $prefix_wordpos where word = '$word' and pos in ('s', 'p') ");
 		#	$sth1->execute() or warn "$sth1->errstr\n";
 		#	if($sth1->rows()>0){ #if $modifier is a O/N, find the good tag: o length / length of o
 		#					}else{
@@ -2629,7 +2630,7 @@ sub pronouncharactersubject{
 	}
 	#propsition cases
 	$propptn = '^('.$PROPOSITION.')';
-	$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from sentence where (tag != 'ignore' or isnull(tag)) and lead rlike '$propptn ' ");
+	$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and lead rlike '$propptn ' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $lead, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 		tagsentwmt($sentid, $sentence, "", "ditto", "pronouncharactersubject[proposition subject]");
@@ -2638,7 +2639,7 @@ sub pronouncharactersubject{
 	#pronoun cases
 	#5/01/09 pronoun could be in the middle of the modifier or tag "visceral areas of both valves" => visceral both valves areas???
 	$pronptn = '('.$PRONOUN.')';
-	$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from sentence where tag rlike '(^| )$pronptn( |\$)' or modifier rlike '(^| )$pronptn( |\$)'");
+	$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from $prefix_sentence where tag rlike '(^| )$pronptn( |\$)' or modifier rlike '(^| )$pronptn( |\$)'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $lead, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 		$modifier =~ s#\b($PRONOUN)\b##g;
@@ -2653,7 +2654,7 @@ sub pronouncharactersubject{
 		tagsentwmt($sentid, $sentence, $modifier, $tag, "pronouncharactersubject[pronoun subject]");
 	}
 	#$pronptn = '^('.$PRONOUN.')';
-	#$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from sentence where (tag != 'ignore' or isnull(tag)) and lead rlike '$pronptn '");
+	#$sth = $dbh->prepare("select sentid, lead, modifier, tag, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and lead rlike '$pronptn '");
 	#$sth->execute() or warn "$sth->errstr\n";
 	#while(($sentid, $lead, $modifier, $tag, $sentence) = $sth->fetchrow_array()){
 	#	if($modifier =~ /^\b($PRONOUN)\b(.*)$/){#remove pronoun from modifier
@@ -2672,7 +2673,7 @@ sub pronouncharactersubject{
 	
 	#errous noun cases : ligules surpassing phyllaries by 15 – 20 mm
 	
-	$sth = $dbh->prepare("select sentid, sentence, tag from sentence where (tag != 'ignore' or isnull(tag)) and tag not rlike ' (and|nor|or) ' and tag not like '%[%' and sentence collate utf8_bin not rlike concat('^[^N]*<N>',tag) ");
+	$sth = $dbh->prepare("select sentid, sentence, tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag not rlike ' (and|nor|or) ' and tag not like '%[%' and sentence collate utf8_bin not rlike concat('^[^N]*<N>',tag) ");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sentence, $tag) = $sth->fetchrow_array()){
 		$sentcopy = $sentence;
@@ -2697,10 +2698,10 @@ sub pronouncharactersubject{
 sub remainnulltag{
 	my($sth, $sentid, $sentence);
 	#"general"
-	$sth = $dbh->prepare("select sentid from sentence where (isnull(tag) or tag ='' or tag = 'ditto' or tag ='unknown') and source like '%-0'");
+	$sth = $dbh->prepare("select sentid from $prefix_sentence where (isnull(tag) or tag ='' or tag = 'ditto' or tag ='unknown') and source like '%-0'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid) = $sth->fetchrow_array()){
-		my $sth1=$dbh->prepare("update sentence set modifier ='', tag ='$defaultgeneraltag' where sentid = $sentid");
+		my $sth1=$dbh->prepare("update $prefix_sentence set modifier ='', tag ='$defaultgeneraltag' where sentid = $sentid");
 		$sth1->execute() or warn "$sth1->errstr\n";
 		print "mark [$sentid] <general>: $sentence\n" if $debug;
 	}
@@ -2713,7 +2714,7 @@ sub remainnulltag{
 	my $mphraseptn = "(?:<[A-Z]*M[A-Z]*>[^<]+?<\/[A-Z]*M[A-Z]*>\\s*)+";
 
 
-	$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag)");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag)");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sentence) = $sth->fetchrow_array()){
 		#4/11/09
@@ -2772,8 +2773,8 @@ sub markupbypos{
 	do{
 		$sign = 0;
 		tagunknowns("singletag");
-		#$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag) or tag = 'ignore'");
-		$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag)"); #4/7/09
+		#$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag) or tag = 'ignore'");
+		$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag)"); #4/7/09
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($sentid, $sentence) = $sth->fetchrow_array()){
 			@words = split(/\s+/, $sentence);
@@ -2880,7 +2881,7 @@ sub tagsentwmt{
 	while($modifier =~/^(\w+ly)\s*(.*)/){
 		my $ly = $1;
 		my $rest = $2;
-		$sth1 = $dbh->prepare("select * from wordpos where word = '$ly' and pos='b' ");
+		$sth1 = $dbh->prepare("select * from $prefix_wordpos where word = '$ly' and pos='b' ");
 		$sth1->execute() or warn "$sth1->errstr\n";
 		if($sth1->rows() > 0){
 			$modifier = $rest;
@@ -2895,13 +2896,13 @@ sub tagsentwmt{
 	$modifier =~ s#(^\s*|\s*$)##g;
 	$tag =~ s#(^\s*|\s*$)##g;
 	if($tag eq "NULL"){
-		$sth1 = $dbh->prepare("update sentence set tag = NULL, modifier = '$modifier' where sentid = $sentid");
+		$sth1 = $dbh->prepare("update $prefix_sentence set tag = NULL, modifier = '$modifier' where sentid = $sentid");
 	}else{
 		if(length($tag) > $taglength){
 			$tag = substr($tag, 0, $taglength);
 			print "\n tag <$tag> longer than $taglength\n";
 		}
-		$sth1 = $dbh->prepare("update sentence set tag = '$tag', modifier = '$modifier' where sentid = $sentid");
+		$sth1 = $dbh->prepare("update $prefix_sentence set tag = '$tag', modifier = '$modifier' where sentid = $sentid");
 	}
 	$sth1->execute() or warn "$label: sentid $sentid:<$tag> $sth1->errstr\n";
 	print "\n in $label: use modifier [$modifier], tag <$tag> to tag sentence $sentid: $sentence \n" if $debug and $label ne "normalizetags";
@@ -2913,14 +2914,14 @@ sub tagsentwmt{
 #2 n = or x = =>tag as chromosome
 sub markupbypattern{
 	my ($sth);
-	$sth = $dbh->prepare("update sentence set tag = 'chromosome', modifier='' where originalsent like 'x=%' or originalsent like '2n=%' or originalsent like 'x %' or originalsent like '2n %' or originalsent like '2 n%'");
+	$sth = $dbh->prepare("update $prefix_sentence set tag = 'chromosome', modifier='' where originalsent like 'x=%' or originalsent like '2n=%' or originalsent like 'x %' or originalsent like '2n %' or originalsent like '2 n%'");
 	$sth->execute() or warn "$sth->errstr\n";
 
 	#foc
-	$sth = $dbh->prepare("update sentence set tag = 'flowerTime', modifier='' where originalsent like 'fl.%'");
+	$sth = $dbh->prepare("update $prefix_sentence set tag = 'flowerTime', modifier='' where originalsent like 'fl.%'");
 	$sth->execute() or warn "$sth->errstr\n";
 
-	$sth = $dbh->prepare("update sentence set tag = 'fruitTime', modifier='' where originalsent like 'fr.%'");
+	$sth = $dbh->prepare("update $prefix_sentence set tag = 'fruitTime', modifier='' where originalsent like 'fr.%'");
 	$sth->execute() or warn "$sth->errstr\n";
 
 
@@ -2933,8 +2934,8 @@ sub markupbypattern{
 sub markupignore{
 	my ($sth);
 	#4/26/09	 
-	#$sth = $dbh->prepare("update sentence set tag = 'ignore', modifier='' where originalsent rlike '^$IGNOREPTN ' or originalsent rlike '[^,;.]+ $IGNOREPTN '");
-	$sth = $dbh->prepare("update sentence set tag = 'ignore', modifier='' where originalsent rlike '(^| )$IGNOREPTN ' ");
+	#$sth = $dbh->prepare("update $prefix_sentence set tag = 'ignore', modifier='' where originalsent rlike '^$IGNOREPTN ' or originalsent rlike '[^,;.]+ $IGNOREPTN '");
+	$sth = $dbh->prepare("update $prefix_sentence set tag = 'ignore', modifier='' where originalsent rlike '(^| )$IGNOREPTN ' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	
 	
@@ -2943,13 +2944,13 @@ sub markupignore{
 sub finalizeignored{
 	my ($sth, $sth1, $sentid, $sentence);
 	
-	$sth = $dbh->prepare("select sentid, sentence from sentence where tag = 'ignore'");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where tag = 'ignore'");
 	$sth->execute() or warn "$sth->errstr\n";
 	
 	while(($sentid, $sentence) = $sth->fetchrow_array()){
 		if($sentence =~ /(.*?)$IGNOREPTN/){
 			if($1=~/<N>/){ #reset tag to null to be processed by remainningnull
-				$sth1 = $dbh->prepare("update sentence set tag =NULL where sentid = $sentid");
+				$sth1 = $dbh->prepare("update $prefix_sentence set tag =NULL where sentid = $sentid");
 				$sth1->execute() or warn "$sth1->errstr\n";
 			}
 		}
@@ -2959,12 +2960,12 @@ sub finalizeignored{
 
 sub untagsentences{
 	my($sth, $sth1, $sentid, $sent);
- 	$sth = $dbh->prepare("select sentid, sentence from sentence where (tag != 'ignore' or isnull(tag)) and sentence like '%<%'");
+ 	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and sentence like '%<%'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sent) = $sth->fetchrow_array()){
 		$sent =~ s#<\S+?>##g; #remove any existing tag
 		$sent =~ s#'#\\'#g;
-		$sth1 = $dbh->prepare("update sentence set sentence ='$sent' where sentid =".$sentid);
+		$sth1 = $dbh->prepare("update $prefix_sentence set sentence ='$sent' where sentid =".$sentid);
 		$sth1->execute() or warn "$sth1->errstr\n";
 	}
  }
@@ -2976,14 +2977,14 @@ sub knowntags{
 	my $mode = shift;
 	my ($sth, $sth1, $sent, $sentid, $n, $m, $b, $b1, $o,$z, $word);
 	#gather nouns from wordpos
-	$sth = $dbh->prepare("select word from wordpos where pos ='p' or pos = 's'");
+	$sth = $dbh->prepare("select word from $prefix_wordpos where pos ='p' or pos = 's'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
 		$n .= $word."|" if length($word)>0;
 	}
 	if($mode eq "singletag"){
 		#additional nouns from tags
-		$sth = $dbh->prepare("select distinct tag from sentence where (tag != 'ignore' or isnull(tag)) and tag not like '% %' and tag not like '%[%' and tag not in (select word from wordpos where pos ='p' or pos = 's')");
+		$sth = $dbh->prepare("select distinct tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag not like '% %' and tag not like '%[%' and tag not in (select word from $prefix_wordpos where pos ='p' or pos = 's')");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($word) = $sth->fetchrow_array()){
 			$n .= $word."|";
@@ -2993,7 +2994,7 @@ sub knowntags{
 	
 	if($mode ne "singletag"){
 		#Hong: Dec 9, try separate o tag
-		$sth = $dbh->prepare("select distinct tag from sentence where (tag != 'ignore' or isnull(tag)) and tag not like '% %' and tag not like '%[%'");
+		$sth = $dbh->prepare("select distinct tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and tag not like '% %' and tag not like '%[%'");
 		$sth->execute() or warn "$sth->errstr\n";
 		while(($word) = $sth->fetchrow_array()){
 			$word =~ s#[\[\]]##g;
@@ -3006,9 +3007,9 @@ sub knowntags{
 	#middle/middles case: middle is a "s" and "m" at the same time. Should allow words such as middle to have two roles
 	#get all modifiers, hong 12/9
 	if($mode eq "singletag"){
-		$sth = $dbh->prepare("select word from modifiers where word not in (select distinct word from wordpos where pos ='s' or pos='p')");
+		$sth = $dbh->prepare("select word from $prefix_modifiers where word not in (select distinct word from $prefix_wordpos where pos ='s' or pos='p')");
 	}else{
-		$sth = $dbh->prepare("select distinct word from modifiers");
+		$sth = $dbh->prepare("select distinct word from $prefix_modifiers");
 	}
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
@@ -3017,7 +3018,7 @@ sub knowntags{
 	chop($m);
 	
 	#gather boundary words from wordpos
-	$sth = $dbh->prepare("select word from wordpos where pos ='b'");
+	$sth = $dbh->prepare("select word from $prefix_wordpos where pos ='b'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
 		if($word =~/^[-\(\)\[\]\{\}\.\|\+\*\?]$/){
@@ -3033,7 +3034,7 @@ sub knowntags{
 	
 	#6/02/09
 	#gather proper nouns from wordpos
-	$sth = $dbh->prepare("select word from wordpos where pos ='z'");
+	$sth = $dbh->prepare("select word from $prefix_wordpos where pos ='z'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
 			$z .= $word."|" if length($word)>1;
@@ -3049,7 +3050,7 @@ sub knowntags{
 
 sub fixxwithy{
 	my ($sth, $sth1, $sentid, $tag, $lead, $firstn, $secondn, $sentence);
-	$sth = $dbh->prepare("select sentid, tag, lead, sentence from sentence where (tag != 'ignore' or isnull(tag)) and lead like '% with %'"); 
+	$sth = $dbh->prepare("select sentid, tag, lead, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and lead like '% with %'"); 
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $tag, $lead, $sentence) = $sth->fetchrow_array()){
 		if($lead =~/^(\w+)\s+with\s+(\w+)/){
@@ -3068,12 +3069,12 @@ sub tagunknowns{
 	my $mode = shift;
 	my ($n,$o, $m, $b, $b1, $z) = knowntags($mode); #depending on the mode, $o could be empty
 	my ($sth, $sentid, $sent, $sth1);
-	$sth = $dbh->prepare("select sentid, sentence from sentence where isnull(tag) and lead not like 'similar to %'");
+	$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence where isnull(tag) and lead not like 'similar to %'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sent) = $sth->fetchrow_array()){
 		$sent =~ s#<\S+?>##g; #remove any existing tag
 		$sent = annotateSent($sent, $n, $o, $m, $b, $b1, $z);
-		$sth1 = $dbh->prepare("update sentence set sentence ='$sent' where sentid =".$sentid);
+		$sth1 = $dbh->prepare("update $prefix_sentence set sentence ='$sent' where sentid =".$sentid);
 		$sth1->execute() or warn "$sth1->errstr\n";
 	}
 }
@@ -3085,9 +3086,9 @@ sub tagallsentences{
 	my ($n, $o, $m, $b, $b1, $z) = knowntags($mode); #depending on the mode, $o could be empty #6/02/09 add $z
 	my ($sth, $sentid, $sent, $sth1);
 	if($type eq "original"){
-		$sth = $dbh->prepare("select sentid, originalsent from sentence");#tag all including "ignore"
+		$sth = $dbh->prepare("select sentid, originalsent from $prefix_sentence");#tag all including "ignore"
 	}else{
-		$sth = $dbh->prepare("select sentid, sentence from sentence");
+		$sth = $dbh->prepare("select sentid, sentence from $prefix_sentence");
 	}
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentid, $sent) = $sth->fetchrow_array()){
@@ -3100,12 +3101,12 @@ sub tagallsentences{
     	$sent =~ s#\s*$##; 
 		$sent = annotateSent($sent, $n, $o, $m, $b, $b1, $z);
 		#$sent =~ s#'#\\'#g;
-		$sth1 = $dbh->prepare("update sentence set sentence ='$sent' where sentid =".$sentid);
+		$sth1 = $dbh->prepare("update $prefix_sentence set sentence ='$sent' where sentid =".$sentid);
 		$sth1->execute() or warn "$sth1->errstr\n";
 	}
 	
 	#my ($sth, $sentid, $originalsent, $sth1);
-	#$sth = $dbh->prepare("select sentid, originalsent from sentence where (tag != 'ignore' or isnull(tag)) ");
+	#$sth = $dbh->prepare("select sentid, originalsent from $prefix_sentence where (tag != 'ignore' or isnull(tag)) ");
 	#$sth->execute() or warn "$sth->errstr\n";
 	#while(($sentid, $originalsent) = $sth->fetchrow_array()){
 	#	$originalsent =~ s#<\S+?>##g; #remove any existing tag
@@ -3116,7 +3117,7 @@ sub tagallsentences{
     #	$originalsent =~ s#^\s*##;                                 #trim
     #	$originalsent =~ s#\s*$##; 
 	#	$originalsent = annotateSent($originalsent, $n, $o, $m, $b, $b1);
-	#	$sth1 = $dbh->prepare("update sentence set sentence =\"".$originalsent."\" where sentid =".$sentid);
+	#	$sth1 = $dbh->prepare("update $prefix_sentence set sentence =\"".$originalsent."\" where sentid =".$sentid);
 	#	$sth1->execute() or warn "$sth1->errstr\n";
 	#}
 }
@@ -3148,8 +3149,8 @@ sub annotateSent{
 
 sub separatemodifiertag{	
   my ($sth,$sth1, $tag, $ntag, $sth1, $sentid, @words, $modifier, $i, $j, $tmp, $sentence);
-  $sth = $dbh->prepare("select sentid, tag, sentence from sentence where tag like '% %'"); #4/29/09
-  #$sth = $dbh->prepare("select sentid, tag, sentence from sentence where (tag != 'ignore' or isnull(tag)) and !isnull(tag)");
+  $sth = $dbh->prepare("select sentid, tag, sentence from $prefix_sentence where tag like '% %'"); #4/29/09
+  #$sth = $dbh->prepare("select sentid, tag, sentence from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and !isnull(tag)");
   $sth->execute() or warn "$sth->errstr\n";
   while(($sentid, $tag, $sentence) = $sth->fetchrow_array() ){
       $ntag = $tag;
@@ -3202,7 +3203,7 @@ sub separatemodifiertag{
  
 sub normalizetags{
 	my ($sth, $sth1, $sentid, $tag, $modifier, $bracted, $sentence);
-	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from sentence where (tag != 'ignore' or isnull(tag))");
+	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from $prefix_sentence where (tag != 'ignore' or isnull(tag))");
 	$sth->execute() or warn "$sth->errstr\n";
  	while(($sentid, $sentence, $tag, $modifier) = $sth->fetchrow_array()){
  		if($sentence =~/$tag\s+of\s+/){
@@ -3266,7 +3267,7 @@ my %checkedmodifiers = ();
 sub normalizemodifiers{
 	my ($sth, $sth1, $sentid, $tag, $modifier, $bracted, $sentence, $mcopy);
 	#non- and/or/to/plus cases
-	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from sentence where modifier!=''  and modifier not rlike ' (and|or|nor|plus|to) ' order by length(modifier) desc");
+	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from $prefix_sentence where modifier!=''  and modifier not rlike ' (and|or|nor|plus|to) ' order by length(modifier) desc");
 	$sth->execute() or warn "$sth->errstr\n";
 	
  	while(($sentid, $sentence, $tag, $modifier) = $sth->fetchrow_array()){
@@ -3283,7 +3284,7 @@ sub normalizemodifiers{
  	}
  	
  	#deal with to: characterA to characterB organ (small to median shells)
- 	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from sentence where modifier rlike ' to ' order by length(modifier)");
+ 	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from $prefix_sentence where modifier rlike ' to ' order by length(modifier)");
 	$sth->execute() or warn "$sth->errstr\n";
  	while(($sentid, $sentence, $tag, $modifier) = $sth->fetchrow_array()){
  		$mcopy = $modifier;
@@ -3292,14 +3293,14 @@ sub normalizemodifiers{
  		@mwords = reverse(@mwords);
  		
  		my $m = "";
- 		$sth1 = $dbh->prepare("select count(*) from sentence where modifier ='$m' and tag ='$tag'");
+ 		$sth1 = $dbh->prepare("select count(*) from $prefix_sentence where modifier ='$m' and tag ='$tag'");
  		$sth1->execute() or warn "$sth1->errstr\n";
  		my ($count) = $sth1->fetchrow_array();
  		my $modi = $m;
  		foreach (@mwords){
  			$m = $_." ".$m;
  			$m =~ s#\s+$##;
- 			$sth1 = $dbh->prepare("select count(*) from sentence where modifier ='$m' and tag ='$tag'");
+ 			$sth1 = $dbh->prepare("select count(*) from $prefix_sentence where modifier ='$m' and tag ='$tag'");
  			$sth1->execute() or warn "$sth1->errstr\n";
  			my ($c) = $sth1->fetchrow_array();
  			if($c > $count){
@@ -3313,7 +3314,7 @@ sub normalizemodifiers{
 
 	#4/26/09
 	#modifier with and/or/plus
-	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from sentence where modifier rlike ' (and|or|nor|plus|to) ' order by length(modifier) desc");
+	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from $prefix_sentence where modifier rlike ' (and|or|nor|plus|to) ' order by length(modifier) desc");
 	$sth->execute() or warn "$sth->errstr\n";
 	
  	while(($sentid, $sentence, $tag, $modifier) = $sth->fetchrow_array()){
@@ -3331,7 +3332,7 @@ sub normalizemodifiers{
  	
  		#4/29/09
 	#modifier with and/or/plus
-	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from sentence where tag rlike ' (and|or|nor|plus|to) ' order by length(tag) desc");
+	$sth = $dbh->prepare("select sentid, sentence, tag, modifier from $prefix_sentence where tag rlike ' (and|or|nor|plus|to) ' order by length(tag) desc");
 	$sth->execute() or warn "$sth->errstr\n";
 	
  	while(($sentid, $sentence, $tag, $modifier) = $sth->fetchrow_array()){
@@ -3413,7 +3414,7 @@ sub finalizecompoundmodifier{
 		}else{
 			$cut = 1;
 			my $tm = $n=~/\w/? $l." ".$n : $l; #5/09/09 check sentid 5380 elevated and elongate dorsal muscle/scars
-			my $sth = $dbh->prepare("select * from sentence where modifier ='$tm' and tag ='$tag' ");
+			my $sth = $dbh->prepare("select * from $prefix_sentence where modifier ='$tm' and tag ='$tag' ");
 			$sth->execute() or warn "$sth->errstr\n";
 			if($sth->rows()>0){
 				$m = $l." ".$m;
@@ -3513,7 +3514,7 @@ sub ism{
 		return -1;
 	}
 	#if $word is a "s", return 1
-	$sth = $dbh->prepare("select * from wordpos where word = '$word' and pos in ('s','p', 'n')"); #5/1/09 add p, n in the list. because this is called before noramlizetags "areas of both valves"
+	$sth = $dbh->prepare("select * from $prefix_wordpos where word = '$word' and pos in ('s','p', 'n')"); #5/1/09 add p, n in the list. because this is called before noramlizetags "areas of both valves"
 	$sth->execute() or warn "$sth->errstr\n";
  	if($sth->rows>0){
  		#$checkedmodifiers{$word} .= '1[$tag]';
@@ -3522,9 +3523,9 @@ sub ism{
 		return 1;
  	}
  	#if $word is a "b", and not a "m", return 0
- 	$sth = $dbh->prepare("select * from wordpos where word = '$word' and pos = 'b'");
+ 	$sth = $dbh->prepare("select * from $prefix_wordpos where word = '$word' and pos = 'b'");
 	$sth->execute() or warn "$sth->errstr\n";
-	$sth1 = $dbh->prepare("select * from modifiers where word = '$word'");
+	$sth1 = $dbh->prepare("select * from $prefix_modifiers where word = '$word'");
 	$sth1->execute() or warn "$sth1->errstr\n";
  	if($sth->rows>0 and $sth1->rows==0){ #only b
  		#$checkedmodifiers{$word} .= '0[$tag]';
@@ -3545,7 +3546,7 @@ sub ism{
 	if($word =~/_/){
 		$wcopy =~s#_# - #g;
 	}
-	$sth1 = $dbh->prepare("select count(*) from sentence where originalsent rlike '(^| )$wcopy '");
+	$sth1 = $dbh->prepare("select count(*) from $prefix_sentence where originalsent rlike '(^| )$wcopy '");
 	$sth1->execute() or warn "$sth1->errstr\n";
 	my ($tcount) = $sth1->fetchrow_array();
 	
@@ -3570,7 +3571,7 @@ sub getmcount{
 	my ($sentence, $mcount, $sth);
 	
 	#my $ptn = "(>| )$word(</B></M>)? [^,]*<N";
- 	#$sth = $dbh->prepare("select sentence from sentence where sentence COLLATE utf8_bin rlike  '$ptn'"); #4/29/09
+ 	#$sth = $dbh->prepare("select sentence from $prefix_sentence where sentence COLLATE utf8_bin rlike  '$ptn'"); #4/29/09
 	#$sth->execute() or warn "$sth->errstr\n";
 	#while(($sentence) = $sth->fetchrow_array()){
 	#	if($sentence =~ /(?:>| )$word(?:<\/B><\/M>)? ([^,]*?)<N/){
@@ -3581,7 +3582,7 @@ sub getmcount{
 	#}
 	
 	my $ptn = "(>| )$word(</B></M>)? <N";
-	$sth = $dbh->prepare("select sentence from sentence where sentence COLLATE utf8_bin rlike  '$ptn'"); #4/29/09
+	$sth = $dbh->prepare("select sentence from $prefix_sentence where sentence COLLATE utf8_bin rlike  '$ptn'"); #4/29/09
 	$sth->execute() or warn "$sth->errstr\n";
 	$mcount = $sth->rows();
 	return $mcount;
@@ -3591,13 +3592,13 @@ sub getmcount{
 #test
 sub listtruemodifiers{
 	my ($sth, $sth1, $sth2, $tag, $source, $modifier, %m, %nm, %list);
-	$sth = $dbh->prepare("select distinct tag from sentence where tag not like '% %' and not isnull(tag)");
+	$sth = $dbh->prepare("select distinct tag from $prefix_sentence where tag not like '% %' and not isnull(tag)");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(my ($tag) = $sth->fetchrow_array()){
 		%nm = ();
 		%m =();
 		%list = ();
-		$sth1 = $dbh->prepare("select source, modifier from sentence where tag = '$tag' and modifier not like '% %' and modifier !=''");
+		$sth1 = $dbh->prepare("select source, modifier from $prefix_sentence where tag = '$tag' and modifier not like '% %' and modifier !=''");
 		$sth1->execute() or warn "$sth1->errstr\n";
 		while(my ($source, $modifier) = $sth1->fetchrow_array()){
 			$source =~ s#-.*##g;
@@ -3637,13 +3638,13 @@ sub listtruemodifiers{
 
 sub isnoun{
 	my $word = shift;
-	my $sth = $dbh->prepare("select word from wordpos where word ='$word' and pos in ('s','p')");
+	my $sth = $dbh->prepare("select word from $prefix_wordpos where word ='$word' and pos in ('s','p')");
 	$sth->execute() or warn "$sth->errstr\n";
 	if($sth->rows() > 0){
 		return 1;
 	}
 	
-	$sth = $dbh->prepare("select * from sentence where tag ='$word'");
+	$sth = $dbh->prepare("select * from $prefix_sentence where tag ='$word'");
 	$sth->execute() or warn "$sth->errstr\n";
 	if($sth->rows() > 0){
 		return 1;
@@ -3702,7 +3703,7 @@ sub additionalbootstrapping{
 
 sub currenttags{
 	my ($id, $sent, $sth, $TAGS, $lead);
-  	$sth = $dbh->prepare("select tag from sentence where (tag != 'ignore' or isnull(tag)) group by tag order by count(sentid) desc");
+  	$sth = $dbh->prepare("select tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) group by tag order by count(sentid) desc");
   	$sth->execute();
   	$TAGS = "";
   	while( my ($tag)=$sth->fetchrow_array()){
@@ -3718,7 +3719,7 @@ sub doitmarkup{
 	my ($id, $sent, $sth, $TAGS, $lead, $tag);
 	my $sign = 0;
 	print "doit markup\n" if $debug;
-  	$sth = $dbh->prepare("Select sentid, lead, sentence from sentence where isnull(tag) or tag='' or tag='unknown'");
+  	$sth = $dbh->prepare("Select sentid, lead, sentence from $prefix_sentence where isnull(tag) or tag='' or tag='unknown'");
 	$sth->execute();
 	while(($id, $lead, $sent) = $sth->fetchrow_array()){
 		if($sent=~/^.{0,40} (nor|or|and|\/)/){next;}
@@ -3739,7 +3740,7 @@ sub oneleadwordmarkup{
 	my $sign = 0;
 		
 	print "one lead word markup\n" if $debug;
-	$sth = $dbh->prepare("Select sentid, lead, sentence from sentence where isnull(tag) and lead not like '% %'");
+	$sth = $dbh->prepare("Select sentid, lead, sentence from $prefix_sentence where isnull(tag) and lead not like '% %'");
 	$sth->execute();
 	while(($id, $lead, $sent) = $sth->fetchrow_array()){
 		if($tags=~/\b$lead\|/){
@@ -3768,7 +3769,7 @@ sub wrapupmarkup{
   my $sign = 0;
   my $checked = "#";
   #find n-grams, n > 1
-  $sth1 = $dbh->prepare("Select sentid, lead from sentence where isnull(tag)  and lead regexp \".* .*\" order by length(lead) desc" );#multiple-word leads
+  $sth1 = $dbh->prepare("Select sentid, lead from $prefix_sentence where isnull(tag)  and lead regexp \".* .*\" order by length(lead) desc" );#multiple-word leads
   $sth1->execute();
   while(($id1, $lead) = $sth1->fetchrow_array()){
 	  if($checked=~/#$id1#/){next;} 
@@ -3776,15 +3777,15 @@ sub wrapupmarkup{
       @words1 = @words; #words in lead 1
       $words[@words-1] = "[^[:space:]]+\$"; #create the pattern to find other sentences sharing the same subject with different boundary words 
       $match = join(" ", @words);
-      $sth = $dbh->prepare("Select distinct lead from sentence where lead regexp \"^".escape($match)."\" and isnull(tag)" );
+      $sth = $dbh->prepare("Select distinct lead from $prefix_sentence where lead regexp \"^".escape($match)."\" and isnull(tag)" );
       $sth->execute();
       if($sth->rows > 1){ # exist x y and x z, take x as the tag
           $match =~ s# \[\^\[.*$##; #shared
-          $sth = $dbh->prepare("Select sentid, lead from sentence where lead like \"".$match."%\" and isnull(tag)" );
+          $sth = $dbh->prepare("Select sentid, lead from $prefix_sentence where lead like \"".$match."%\" and isnull(tag)" );
           $sth->execute();
 
           @words = split(/\s+/,$match); #shared part
-          $ptn = getPOSptn(@words);#get from wordpos
+          $ptn = getPOSptn(@words);#get from $prefix_wordpos
           my $wnpos = checkWN($words[@words-1], "pos");
           if($ptn =~ /[nsp]$/ || ($ptn =~/\?$/ && $wnpos  =~ /n/) ){ #functionally staminate x vs. y stops here. @words = "functionally statminate"
 	          while(($id, $ld) = $sth->fetchrow_array()){
@@ -3840,12 +3841,12 @@ sub escape{
 #	my (@words, $tag, $word, $count, $ptn);
 # 	print "in default markup: $sent\n" if $debug;
   
-#  	$sth = $dbh->prepare("Select sentid, sentence from sentence where isnull(tag)");
+#  	$sth = $dbh->prepare("Select sentid, sentence from $prefix_sentence where isnull(tag)");
 #	$sth->execute();
 #	while(($id, $sent) = $sth->fetchrow_array()){
 #  		assigndefaulttag($id, $sent, $TAGS);
 #  	}
-#  	 $sth = $dbh->prepare("update sentence set tag = 'unknown' where isnull(tag)");
+#  	 $sth = $dbh->prepare("update $prefix_sentence set tag = 'unknown' where isnull(tag)");
 #	 $sth->execute();
 #}
 
@@ -3956,7 +3957,7 @@ sub discover{
 	my $status = shift;
   	#$status .= "|start" if $status eq "normal";
 	my ($sid, $sentence, @startwords, $pattern, @matched, $round, $sth, $new, $lead, $tag, $newdisc);
-	$sth = $dbh->prepare("select sentid,sentence,lead,tag from sentence where (tag != 'ignore' or isnull(tag)) and status = '$status'");
+	$sth = $dbh->prepare("select sentid,sentence,lead,tag from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and status = '$status'");
     $sth->execute();
 	while(($sid, $sentence, $lead, $tag) = $sth->fetchrow_array()){
 		if(ismarked($sid)){next;} #marked, check $sid for most recent info.
@@ -3992,9 +3993,9 @@ sub matchpattern{
 my($pattern, $status, $hastag) = @_;
 my ($stmt, $sth, @matchedids, $sentid, $sentence);
 if($hastag == 1){
-$stmt = "select sentid,sentence from sentence where status=\"$status\" and !isnull(tag)";
+$stmt = "select sentid,sentence from $prefix_sentence where status=\"$status\" and !isnull(tag)";
 }else{
-$stmt = "select sentid,sentence from sentence where status=\"$status\" and isnull(tag)";
+$stmt = "select sentid,sentence from $prefix_sentence where status=\"$status\" and isnull(tag)";
 }
 $sth = $dbh->prepare($stmt);
 $sth->execute();
@@ -4009,7 +4010,7 @@ return @matchedids;
 sub ismarked{
 	my $id = shift;
 	my $sth;
-	$sth=$dbh->prepare("select * from sentence where sentid=".$id." and !isnull(tag)");
+	$sth=$dbh->prepare("select * from $prefix_sentence where sentid=".$id." and !isnull(tag)");
     $sth->execute();
 	return $sth->rows != 0;
 }
@@ -4021,7 +4022,7 @@ sub ismarked{
 #	my %register=("n","","s","","p","","b","","?","");
 #	foreach $sentid (@sentids){
 #               $flag = 0; #no new information may be found in matched cases
-#		$sth = $dbh->prepare("select sentence, lead, tag from sentence where sentid=".$sentid);
+#		$sth = $dbh->prepare("select sentence, lead, tag from $prefix_sentence where sentid=".$sentid);
 #		$sth->execute();
 #		($sent, $lead, $tag) = $sth->fetchrow_array();
 #		if(!ismarked($sentid)){
@@ -4036,7 +4037,7 @@ sub ismarked{
 #    			@matched = matchwordptn($wordptn, @sentids); # ids of sentences matching the pattern: tagged or untagged, pos known or unknown
 #    			#check the leading words' POSs in @matched
 #        		foreach $sid (@matched){
-#        			$sth = $dbh->prepare("select lead from sentence where sentid=$sid");
+#        			$sth = $dbh->prepare("select lead from $prefix_sentence where sentid=$sid");
 #					$sth->execute();
 #					($lead) = $sth->fetchrow_array();
 #					@words = split(/\s+/, $lead);
@@ -4084,7 +4085,7 @@ sub matchwordptn{
 my($wordptn, @sentids) =@_;
 my(@results, $sth, $sent);
 foreach (@sentids){
- $sth = $dbh->prepare("select sentence from sentence where sentid=$_");
+ $sth = $dbh->prepare("select sentence from $prefix_sentence where sentid=$_");
  $sth->execute();
  $sent = $sth->fetchrow_array();
  push(@results, $_) if $sent =~ /$wordptn/i
@@ -4215,7 +4216,7 @@ sub doit{
 	my ($sentid) = shift;
 	my ($tag, $sign, $ptn, $i,$t, @ws, @tws, @cws, $pos, $certainty);
 	my ($role, $start, $end, @t, $sentence, $sth, $lead, $sent);
-	$sth = $dbh->prepare("select sentence, lead from sentence where sentid = $sentid");
+	$sth = $dbh->prepare("select sentence, lead from $prefix_sentence where sentid = $sentid");
 	$sth->execute();
 	($sentence, $lead) = $sth->fetchrow_array();
 	
@@ -4277,7 +4278,7 @@ sub doit{
 		    #$tag = $ws[$i-1];
        	   	$tag = $ws[$i];
 		   	$sign += update($tag, "p","-", "wordpos", 1);
-           	my $sth = $dbh->prepare("insert into isA (instance, class) values (\"".$tag."\",\"".$ws[$i-1]."\")");
+           	my $sth = $dbh->prepare("insert into $prefix_isA (instance, class) values (\"".$tag."\",\"".$ws[$i-1]."\")");
            	$sth->execute();
            	print "\t:[p p] pattern: determine the tag: $tag\n" if $debugp;
 		}else{
@@ -4344,7 +4345,7 @@ sub doit{
        			$tag = $ws[$i];   #may be rejected later
     		}
        		@t = checkposinfo($tag, "one");#last p is the tag
-       		#my $sth = $dbh->prepare("insert into isA (instance, class) values (\"".$tag."\",\"".$ws[$i-1]."\")");
+       		#my $sth = $dbh->prepare("insert into $prefix_isA (instance, class) values (\"".$tag."\",\"".$ws[$i-1]."\")");
        		#$sth->execute();
     	}else{#not pp
     		#the whole ptn + $moren
@@ -4383,7 +4384,7 @@ sub doit{
        	#		$tag = $ws[$i];   #may be rejected later
        	#		@t = checkposinfo($tag, "one");#last p is the tag
        	#		$end = $i+1;
-       	#		my $sth = $dbh->prepare("insert into isA (instance, class) values (\"".$tag."\",\"".$ws[$i-1]."\")");
+       	#		my $sth = $dbh->prepare("insert into $prefix_isA (instance, class) values (\"".$tag."\",\"".$ws[$i-1]."\")");
        	#		$sth->execute();
     	#}else{#not pp
        	#	#@tws = splice(@ws,$start, $end-$start);#get nn tag words
@@ -4581,7 +4582,7 @@ sub followedbyn{
 	$sentence =~ s#^$lead##;
 	my $word;
 	my $knownnouns = "";
-	my $sth = $dbh->prepare("select word from wordpos where pos ='p' or pos = 's'");
+	my $sth = $dbh->prepare("select word from $prefix_wordpos where pos ='p' or pos = 's'");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($word) = $sth->fetchrow_array()){
 		$knownnouns .= $word."|" if length($word)>0;
@@ -4636,10 +4637,10 @@ sub getNounsAfterPtn{
 sub getroles{
   my $word = shift;
   my ($sth, $maincount, $modicount);
-  $sth = $dbh->prepare("select certaintyu from wordpos where word = \"$word\" and role = \"-\"");
+  $sth = $dbh->prepare("select certaintyu from $prefix_wordpos where word = \"$word\" and role = \"-\"");
 	$sth->execute();
   $maincount = $sth->fetchrow_array();
-  $sth = $dbh->prepare("select count from modifiers where word = \"$word\"");
+  $sth = $dbh->prepare("select count from $prefix_modifiers where word = \"$word\"");
 	$sth->execute();
   $modicount = $sth->fetchrow_array();
   return ($maincount, $modicount);
@@ -4659,7 +4660,7 @@ sub tag{
 			$tag = substr($tag, 0, $taglength);
 			print "\n tag <$tag> longer than $taglength\n";
 		}
-	   $sth = $dbh->prepare("update sentence set tag ='$tag' where sentid =$sid");
+	   $sth = $dbh->prepare("update $prefix_sentence set tag ='$tag' where sentid =$sid");
 	   $sth->execute();
 	   print "\t:mark up ".$sid." with tag $tag\n" if $debug;
 	}
@@ -4675,7 +4676,7 @@ sub discount{
 	my($word, $pos, $suggestedpos, $mode) =@_;
 	my ($sth1, $cu, $cl, $relatedword, $wordlist, $sth);
 	#also need to discount the related words if $word was the source word in prefix-based learning
-	$sth1 = $dbh->prepare("select word from unknownwords where flag = (select flag from unknownwords where word = '$word')");
+	$sth1 = $dbh->prepare("select word from $prefix_unknownwords where flag = (select flag from $prefix_unknownwords where word = '$word')");
 	$sth1->execute();
 	while(($relatedword) = $sth1->fetchrow_array()){
 		$wordlist .= "'".$relatedword."',";
@@ -4684,31 +4685,31 @@ sub discount{
 	chop($wordlist);
 	print "words related to $word to be discounted: $wordlist \n" if $debug;
 	
-	#$sth1 = $dbh->prepare("select certaintyu, certaintyl from wordpos where word=\"$word\" and pos=\"$pos\"");
-	$sth1 = $dbh->prepare("select word, certaintyu, certaintyl from wordpos where word in ($wordlist) and pos='$pos'");
+	#$sth1 = $dbh->prepare("select certaintyu, certaintyl from $prefix_wordpos where word=\"$word\" and pos=\"$pos\"");
+	$sth1 = $dbh->prepare("select word, certaintyu, certaintyl from $prefix_wordpos where word in ($wordlist) and pos='$pos'");
 	$sth1->execute() or warn "$sth1->errstr\n";
 	while(($word, $cu, $cl) = $sth1->fetchrow_array()){
 		if(--$cu <= 0 || $mode eq "all"){
-			#remove this record from wordpos
-			$sth = $dbh->prepare("delete from wordpos where word = '$word' and pos='$pos' ");
+			#remove this record from $prefix_wordpos
+			$sth = $dbh->prepare("delete from $prefix_wordpos where word = '$word' and pos='$pos' ");
 			$sth->execute() or warn "$sth->errstr\n";
 			#reset this word to unknown in unknownwords
 			updateunknownwords($word, "unknown");
 			#if $pos is "s" or "p", update singularplural table
 			if($pos =~ /[sp]/){
-				$sth = $dbh->prepare("delete from singularplural where singular = '$word' or plural ='$word' ");
+				$sth = $dbh->prepare("delete from $prefix_singularplural where singular = '$word' or plural ='$word' ");
 				$sth->execute() or warn "$sth->errstr\n";
 				#set sentences already marked as $word to NULL:
-				#$sth = $dbh->prepare("update sentence set tag = NULL where tag = '$word' ");
+				#$sth = $dbh->prepare("update $prefix_sentence set tag = NULL where tag = '$word' ");
 				#$sth->execute() or warn "$sth->errstr\n";
 				#print "reset sentences marked as $word to NULL\n" if $debug;
 			}
 			#record this into discouted table
-			$sth = $dbh->prepare("insert into discounted values ('$word', '$pos', '$suggestedpos')");
+			$sth = $dbh->prepare("insert into $prefix_discounted values ('$word', '$pos', '$suggestedpos')");
 			$sth->execute() or warn "$sth->errstr\n";
 		}else{
 			#update
-			$sth = $dbh->prepare("update wordpos set certaintyu=$cu where word=\"$word\" and pos=\"$pos\" ");
+			$sth = $dbh->prepare("update $prefix_wordpos set certaintyu=$cu where word=\"$word\" and pos=\"$pos\" ");
 			$sth->execute() or warn "$sth->errstr\n";;
 		}
 	}
@@ -4735,17 +4736,17 @@ sub addmodifier{
 	my ($sth1, $count, $update, $increment);
 	return if $m=~/\b($stop|\w+ly)\b/ || $m !~/\w/;
 	
-	$sth1 = $dbh->prepare("select count from modifiers where word='$m'");
+	$sth1 = $dbh->prepare("select count from $prefix_modifiers where word='$m'");
     $sth1->execute();
     $count = $sth1->fetchrow_array();
     if($count < 1){
-       $sth1 = $dbh->prepare("insert into modifiers values ('$m', 1, 0)");
+       $sth1 = $dbh->prepare("insert into $prefix_modifiers values ('$m', 1, 0)");
        $sth1->execute();
        $update = 1;
        print "new modifier $m added\n" if $debug;
     }else{
        $count += $increment; #6/11/09 from +1 to +increment
-       $sth1 = $dbh->prepare("update modifiers set count = $count where word='$m'");
+       $sth1 = $dbh->prepare("update $prefix_modifiers set count = $count where word='$m'");
        $sth1->execute();
     }
     return $update;
@@ -4808,7 +4809,7 @@ sub update{
 sub insingularpluralpair{
 	my $word = shift;
 	my($sth);
-	$sth = $dbh->prepare("select * from singularplural where singular = '$word' or plural ='$word' ");
+	$sth = $dbh->prepare("select * from $prefix_singularplural where singular = '$word' or plural ='$word' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	if($sth->rows <= 0){
 		return 0;
@@ -4819,10 +4820,10 @@ sub insingularpluralpair{
 sub addsingularpluralpair{
 	my($sg, $pl) = @_;
 	my($sth);
-	$sth = $dbh->prepare("select * from singularplural where singular = '$sg' and plural ='$pl' ");
+	$sth = $dbh->prepare("select * from $prefix_singularplural where singular = '$sg' and plural ='$pl' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	if($sth->rows <= 0){
-		$sth = $dbh->prepare("insert into singularplural values ('$sg', '$pl')");
+		$sth = $dbh->prepare("insert into $prefix_singularplural values ('$sg', '$pl')");
 		$sth->execute() or warn "$sth->errstr\n";
 	}
 }
@@ -4838,12 +4839,12 @@ sub updatePOS{
 
 	$newwordflag = 1;	
   	#updates should be in one transaction
-	$sth1 = $dbh->prepare("select pos, role, certaintyu, certaintyl from wordpos where word='$word' ");
+	$sth1 = $dbh->prepare("select pos, role, certaintyu, certaintyl from $prefix_wordpos where word='$word' ");
 	$sth1->execute(); #return 1 record
 	($oldpos, $oldrole, $certaintyu) = $sth1->fetchrow_array();
 	if($oldpos !~ /\w/){#new word
 		$certaintyu += $increment; #6/11/09 changed from = 1 to += $increment;
-		$sth = $dbh->prepare("insert into wordpos values('$word','$pos', '$role',$certaintyu, 0)" );
+		$sth = $dbh->prepare("insert into $prefix_wordpos values('$word','$pos', '$role',$certaintyu, 0)" );
 	    $sth->execute();
 		$new = 1;
 		print "\t: new [$word] pos=$pos, role =$role, certaintyu=$certaintyu\n" if $debug;
@@ -4858,23 +4859,23 @@ sub updatePOS{
 			#$role = mergerole($oldrole, $role); #6/11/09
 			$role = $oldrole eq "*" ? $role : $oldrole;
 			$certaintyu += $increment; #change from +1 to +$increment
-			$sth = $dbh->prepare("update wordpos set role ='$role', certaintyu =$certaintyu where word='$word' and pos='$pos' ");
+			$sth = $dbh->prepare("update $prefix_wordpos set role ='$role', certaintyu =$certaintyu where word='$word' and pos='$pos' ");
     		$sth->execute();
 			print "\t: update [$word($pos):a] role: $oldrole=>$role, certaintyu=$certaintyu\n" if $debug;
 		}
 	}else{#old and new pos are all [n],  update role and certaintyu
 		$role = mergerole($oldrole, $role);
 		$certaintyu += $increment; #change from +1 to +$increment
-		$sth = $dbh->prepare("update wordpos set role ='$role', certaintyu =$certaintyu where word='$word' and pos='$pos' ");
+		$sth = $dbh->prepare("update $prefix_wordpos set role ='$role', certaintyu =$certaintyu where word='$word' and pos='$pos' ");
     	$sth->execute();
 		print "\t: update [$word($pos):b] role: $oldrole=>$role, certaintyu=$certaintyu\n" if $debug;
 	}
 	
 	#update certaintyl = sum (certaintyu)
-	$sth = $dbh->prepare("select sum(certaintyu) from wordpos where word=\"$word\"");
+	$sth = $dbh->prepare("select sum(certaintyu) from $prefix_wordpos where word=\"$word\"");
     $sth->execute();
 	($certaintyl) = $sth->fetchrow_array();
-	$sth = $dbh->prepare("update wordpos set certaintyl=$certaintyl where word=\"$word\"");
+	$sth = $dbh->prepare("update $prefix_wordpos set certaintyl=$certaintyl where word=\"$word\"");
     $sth->execute();
 	print "\t: total occurance of [$word] =$certaintyl\n" if $debug;
   return $new;
@@ -4885,7 +4886,7 @@ sub resolveconflicts{
 	my ($word, $bpos, $otherpos) = @_;
 	my ($sth, $sentence, $count);
 	
-	$sth = $dbh->prepare("select originalsent from sentence where (tag != 'ignore' or isnull(tag)) and originalsent rlike '[a-z]+($PLENDINGS) $word' ");
+	$sth = $dbh->prepare("select originalsent from $prefix_sentence where (tag != 'ignore' or isnull(tag)) and originalsent rlike '[a-z]+($PLENDINGS) $word' ");
 	$sth->execute() or warn "$sth->errstr\n";
 	while(($sentence) = $sth->fetchrow_array()){
 		if($sentence =~ /([a-z]+($PLENDINGS)) ($word)/i){
@@ -4911,12 +4912,12 @@ sub resolveconflicts{
 
 	
 #  	#updates should be in one transaction
-#	$sth1 = $dbh->prepare("select role, certaintyu from wordpos where word=\"$word\" and pos=\"$pos\"");
+#	$sth1 = $dbh->prepare("select role, certaintyu from $prefix_wordpos where word=\"$word\" and pos=\"$pos\"");
 #	$sth1->execute();
 #	if($sth1->rows == 0){
 #	    #new pos, insert new record
 #		$certaintyu = 1;
-#		$sth = $dbh->prepare("insert into wordpos values(\"$word\",\"$pos\", \"$role\",$certaintyu,0)");
+#		$sth = $dbh->prepare("insert into $prefix_wordpos values(\"$word\",\"$pos\", \"$role\",$certaintyu,0)");
 #	    $sth->execute();
 #		$new = 1;
 #		print "\t: new [$word] pos=$pos, role =$role, certaintyu=$certaintyu\n" if $debug;
@@ -4925,15 +4926,15 @@ sub resolveconflicts{
 #	    ($oldrole, $certaintyu) = $sth1->fetchrow_array();
 #		$role = mergerole($oldrole, $role);
 #		$certaintyu++;
-#		$sth = $dbh->prepare("update wordpos set role =\"$role\", certaintyu =$certaintyu where word=\"$word\" and pos=\"$pos\"");
+#		$sth = $dbh->prepare("update $prefix_wordpos set role =\"$role\", certaintyu =$certaintyu where word=\"$word\" and pos=\"$pos\"");
 #	    $sth->execute();
 #		print "\t: update [$word($pos)] role: $oldrole=>$role, certaintyu=$certaintyu\n" if $debug;
 #	}
 #	#update certaintyl = sum (certaintyu)
-#	$sth = $dbh->prepare("select sum(certaintyu) from wordpos where word=\"$word\"");
+#	$sth = $dbh->prepare("select sum(certaintyu) from $prefix_wordpos where word=\"$word\"");
 #   $sth->execute();
 #	($certaintyl) = $sth->fetchrow_array();
-#	$sth = $dbh->prepare("update wordpos set certaintyl=$certaintyl where word=\"$word\"");
+#	$sth = $dbh->prepare("update $prefix_wordpos set certaintyl=$certaintyl where word=\"$word\"");
 #    $sth->execute();
 #	print "\t: total occurance of [$word] =$certaintyl\n" if $debug;
 #  return $new;
@@ -4989,11 +4990,11 @@ sub mergerole{
 #		$pos = getnumber($word); #update pos may be p,s, or n
 #	}
 #	#select into wordpos
-#	$sth = $dbh->prepare("select count(*) from wordpos where word=\"$word\" and pos=\"$pos\"");
+#	$sth = $dbh->prepare("select count(*) from $prefix_wordpos where word=\"$word\" and pos=\"$pos\"");
 #	$sth->execute();
 #	if($sth->fetchrow_array() == 0){
 #	    #update
-#		$sth = $dbh->prepare("insert into wordpos values(\"$word\",\"$pos\", \"$role\",\"$certaintyu\",\"$certaintyl\")");
+#		$sth = $dbh->prepare("insert into $prefix_wordpos values(\"$word\",\"$pos\", \"$role\",\"$certaintyu\",\"$certaintyl\")");
 #	    $sth->execute();
 #		$new = 1;
 #	}
@@ -5059,8 +5060,8 @@ sub checkposinfo{
 	    $results[0] = \@temp;
 	    return @results;
 	}
-	#select pos from wordpos
-	$stmt = "select pos, role, certaintyu, certaintyl from wordpos where word=\"$word\" order by certaintyu/certaintyl desc";
+	#select pos from $prefix_wordpos
+	$stmt = "select pos, role, certaintyu, certaintyl from $prefix_wordpos where word=\"$word\" order by certaintyu/certaintyl desc";
 	$sth = $dbh->prepare($stmt);
 	$sth->execute();
 	if($sth->rows ==0){
@@ -5115,7 +5116,7 @@ sub checkposinfo{
 sub getleadwords{
 	my $sentid = shift;
 	my ($sth,$lead);
-	$sth = $dbh->prepare("select lead from sentence where sentid=$sentid");
+	$sth = $dbh->prepare("select lead from $prefix_sentence where sentid=$sentid");
 	$sth->execute();
 	$lead = $sth->fetchrow_array();
 	return split(/\s+/,$lead);
@@ -5470,7 +5471,7 @@ while(defined ($file=readdir(IN))){
     	if(length($oline) >=2000 ){#EOL
     		$oline = $line;
     	}
-    	$stmt = "insert into sentence(sentid, source, sentence, originalsent, lead, status) values($SENTID,'$source' ,'$line','$oline','$lead', '$status')";
+    	$stmt = "insert into $prefix_sentence(sentid, source, sentence, originalsent, lead, status) values($SENTID,'$source' ,'$line','$oline','$lead', '$status')";
 		$sth = $dbh->prepare($stmt);
     	$sth->execute() or die $sth->errstr."\n SQL Statement: ".$stmt."\n";
 		#print "Sentence: $line\n" if $debug;
@@ -5479,7 +5480,7 @@ while(defined ($file=readdir(IN))){
 	}
 	my $end = $SENTID-1;
 	$NEWDESCRIPTION.=$file."[".$end."] ";
-	my $query = $dbh->prepare("insert into sentInFile values ('$file', $end)");
+	my $query = $dbh->prepare("insert into $prefix_sentInFile values ('$file', $end)");
 	$query->execute() or warn $query->errstr."\n";
 }
 	chop($PROPERNOUNS);
@@ -5514,11 +5515,11 @@ sub populateunknownwordstable{
 		if($word !~ /\w/ || $word=~/ous$/){
 			$word = "\\".$word if $word eq "'";
 			print $word."\n";
-			my $sth = $dbh->prepare("insert into unknownwords values ('$word', '$word')");
+			my $sth = $dbh->prepare("insert into $prefix_unknownwords values ('$word', '$word')");
 			$sth->execute() or warn $sth->errstr."\n";
 			update($word, "b", "", "wordpos", 1);
 		}else{
-			my $sth = $dbh->prepare("insert into unknownwords values ('$word', 'unknown')");
+			my $sth = $dbh->prepare("insert into $prefix_unknownwords values ('$word', 'unknown')");
 			$sth->execute() or warn $sth->errstr."\n";
 		}
 		$count++;
