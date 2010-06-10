@@ -28,7 +28,7 @@ import db.DatabaseAccessor;
  *
  *
  * Input includes pageNumberText as an ArrayList, footNoteTokens as an ArrayList, and the source file path pointing to the folder where the OCRed text may be found
- * Output is a set of tables whoes names are prefixed with "prefix" in a database named "sourceDatasets".
+ * Output is a set of tables whose names are prefixed with "prefix" in a database named "sourceDatasets".
  *
  * The user will need to create the database "sourceDatasets" and the user "termuser" before running this class
  */
@@ -267,7 +267,7 @@ public class ContentFetcher {
 	private boolean isInterruptingPoint(int paraID, String para, String source) {
 		para = para.trim();
 
-		Pattern pattern = Pattern.compile("^([_ (\\[a-z0-9)\\]].*?)($|\\.\\s+[A-Z].*)");//start with a lower case letter or a number
+		Pattern pattern = Pattern.compile("^([_ (\\[a-z0-9)\\]].*?)($|[\\.,]\\s+[A-Z].*)");//start with a lower case letter or a number
 		Matcher m = pattern.matcher(para);
 		if(m.matches()){
 			String start = m.group(1);
@@ -520,8 +520,8 @@ public class ContentFetcher {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		//String sourceFilePath="X:\\DATA\\BHL\\test";
-		String sourceFilePath="X:/DATA/Treatise/treatiseTest";
+		String sourceFilePath="X:\\DATA\\BHL\\test";
+		//String sourceFilePath="X:/DATA/Treatise/treatiseTest";
 
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		String pnt1 = "FIELDIANA: BOTANY, VOLUME 40".toLowerCase();
