@@ -9,8 +9,9 @@ use SentenceSpliter;
 
 
 sub collectSeedParagraphs{
-	my ($db, $paragraphtable) = shift; 
+	my ($db, $paragraphtable, $prefix) = @_; 
 	my @seeds = ();
+	my $debug = 0;
 
 	#my @stop_words = ( #removed (the,a,an) and (is,are)
 #"about", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", 
@@ -33,7 +34,7 @@ sub collectSeedParagraphs{
 	my $dbh = DBI->connect("DBI:mysql:database=$db;host=$host", $user, $password)
 	or die DBI->errstr."\n";
 
-	my $select = $dbh->prepare('select paragraphID, paragraph from paragraphs');
+	my $select = $dbh->prepare('select paraID, paragraph from '.$prefix.'_paragraphs');
 	$select->execute() or warn "$select->errstr\n";
 	while(my($pid, $p) = $select->fetchrow_array()){
 		my $length = 0;
@@ -116,7 +117,7 @@ sub collectSeedParagraphs{
 			$pronoun <= 0 &&
 			$punc<= 0 &&
 			$year/$length < 0.1){
-				print $p_copy;
+				print $p_copy if $debug;
 				push(@seeds, $pid);			
 		}
 
