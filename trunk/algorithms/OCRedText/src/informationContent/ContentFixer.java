@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 
 import java.util.*;
+
 import db.DatabaseAccessor;
 
 /**
@@ -219,13 +220,20 @@ public class ContentFixer {
 			String add2ID=(String)it.next();
 			//fetch and attach in paraIDs
 			int index = paraIDs.indexOf(add2ID);
-			String add2p = paras.get(index);
-			String p = paras.get(index-1);
+			String add2p = paras.get(index).trim();
+			String p = paras.get(index-1).replaceFirst("-\\s*$", "-");
 			
 			String add2s = sources.get(index);
 			String s = sources.get(index-1);
-			if(add2s.compareTo(s) == 0){			
-				paras.set(index-1, p+" "+add2p);
+			if(add2s.compareTo(s) == 0){
+				String t = "";
+				if(p.endsWith("-")){
+					t = p+add2p;
+				}else{
+					t = p+" "+add2p;
+				}
+							
+				paras.set(index-1, t);
 				paras.set(index, "");
 			}
 		}
@@ -250,6 +258,8 @@ public class ContentFixer {
 			System.out.print("wrong!");
 			System.exit(1);
 		}
+		
+		normalize(paras);
 		try{
 			DatabaseAccessor.insertCleanParagraphs(prefix, cparaIDs, paraIDs, paras, sources, conn);
 		}catch(Exception e){
@@ -257,12 +267,21 @@ public class ContentFixer {
 		}
 	}
 
+	private void normalize(ArrayList<String> paras) {
+		for(int i = 0; i<paras.size(); i++){
+			String t = paras.get(i);
+			t = t.replaceAll("(?<=[a-z])-\\s+(?=[a-z])", "-").replaceAll("\\s+", " ").replaceAll("\\^", "");
+			paras.set(i, t);
+		}
+		
+	}
+
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		ContentFixer cf = new ContentFixer("treatisetest_paragraphs");
+		ContentFixer cf = new ContentFixer("test_paragraphs");
 		cf.makeCleanContent();
 	}
 
