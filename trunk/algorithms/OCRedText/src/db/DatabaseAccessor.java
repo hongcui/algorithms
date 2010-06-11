@@ -243,6 +243,32 @@ public class DatabaseAccessor {
 		}*/
 	}
 
+	public static void selectDistinctSources(String prefix, ArrayList sources, Connection conn) throws Exception{
+		Hashtable<String, String> results = new Hashtable<String, String>(); 
+		//Connection conn = null;
+		Statement stmt = null;
+		String statement = "select distinct source from "+prefix+"_paragraphs";
+		
+		try {
+			//conn = DriverManager.getConnection(url);
+			stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(statement);
+			while(rs.next()){
+				sources.add(rs.getString(1));
+			}
+		} catch (Exception e) {
+			LOGGER.error("Couldn't select distinct sources from table"+prefix+"_paragraphs::" + e);
+			e.printStackTrace();
+			System.exit(1);
+		} /*finally {
+            if (stmt != null) {
+				stmt.close();
+			}
+			if (conn != null) {
+				conn.close();
+			}
+		}*/
+	}
 	public static void updateParagraph(String prefix, String set, String condition, Connection conn) throws Exception{
 		
 		//Connection conn = null;
