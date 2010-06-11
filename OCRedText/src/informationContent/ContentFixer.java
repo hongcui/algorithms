@@ -3,18 +3,24 @@
  */
 package informationContent;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
 import java.util.*;
 
 import db.DatabaseAccessor;
+//import fna.parsing.ParsingException;
 
 /**
  * @author hongcui
  * after ContentFetcher, ContentFixer removes non-content items and concatenate add2last paragraphs and provides clean content for further processes.
  * this class perform common operations needed for all OCRedText
- * this class calls other classes to perform collection specific functions.	
+ * this class calls other Fixer classes to perform collection specific functions.	
+ * this class outputs text files containing cleaned content, which can be further processed by Type3PreMarkup or Type3Transformer.
  */
 public class ContentFixer {
 	protected String paraTable = null;
@@ -32,6 +38,9 @@ public class ContentFixer {
 	private String refHeading = "REFERENCES";
 	private String Style = "ALLCAP";
 	
+	
+	//private File source =new File(Registry.SourceDirectory); //a folder of text documents to be annotated
+	private File source = new File("Z:\\DATA\\BHL\\useful"); //where output files will be saved
 	/**
 	 * 
 	 */
@@ -42,9 +51,10 @@ public class ContentFixer {
 			//paraID not null primary key longint, source varchar(50), paragraph text(5000), type varchar(10), add2last varchar(5), remark varchar(50)
 			Class.forName(ApplicationUtilities.getProperty("database.driverPath"));
 			conn = DriverManager.getConnection(url);
-			DatabaseAccessor.createCleanParagraphTable(this.prefix, conn);
+			
 		}catch(Exception e){
 			e.printStackTrace();
+			//LOGGER.error("Failed to create a conn in ContentFixer::constructor", e);
 		}
 	}
 	
@@ -55,6 +65,13 @@ public class ContentFixer {
 	 * some noncontent_shorttext need to be saved
 	 */
 	public void makeCleanContent(){
+		try{
+			DatabaseAccessor.createCleanParagraphTable(this.prefix, this.conn);
+		}catch(Exception e){
+			e.printStackTrace();
+			//LOGGER.error("Failed to create clean paragraph table in ContentFixer::makeCleanContent", e);
+			//throw new ParsingException("Failed to output text file.", e);
+		}
 		fixFigtbl(); //reset the add2last paragraphs that should be added to the caption of a preceding fig or table. Work on the original table, not the clean_paragraphs
 		fixAdd2Last(); //populate clean_paragraphs
 		
@@ -70,6 +87,51 @@ public class ContentFixer {
 		if(this.hasReferences){
 			ReferencesFixer rf = new ReferencesFixer(this, this.refHeading);
 			rf.fix();
+		}
+	}
+	
+	/**
+	 * piece text segments back to text files
+	 * 
+	 */
+	public void outputCleanContent(){
+		ArrayList<String> sources = new ArrayList<String>();
+		try{
+			DatabaseAccessor.selectDistinctSources(this.prefix, sources, this.conn);
+			Iterator<String> it = sources.iterator();
+			while(it.hasNext()){
+				String filename = (String)it.next();
+				String condition = "source=\""+filename+"\"";
+				ArrayList<String> paraIDs = new ArrayList<String>();
+				ArrayList<String> paras = new ArrayList<String>();				
+				DatabaseAccessor.selectParagraphs(prefix, condition, "", paraIDs, paras, conn);
+				Iterator<String> ps = paras.iterator();
+				StringBuffer sb = new StringBuffer();
+				while(ps.hasNext()){
+					String p = (String)ps.next();
+					sb.append(p+System.getProperty("line.separator")+System.getProperty("line.separator"));
+				}
+				filename = filename.replaceFirst("\\.[a-z]+$", "_cleaned.txt");
+				File out = new File(this.source, filename);
+				write2File(sb.toString(), out);
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+			//LOGGER.error("Failed to output text file in ContentFixer::outputCleanContent", e);
+			//throw new ParsingException("Failed to output text file.", e);
+		}
+	}
+	
+	private void write2File(String text, File f){
+		try {
+			
+			BufferedWriter out = new BufferedWriter(new FileWriter(f));
+			out.write(text);
+			out.close(); 
+		} catch (IOException e) {
+			e.printStackTrace();
+			//LOGGER.error("Failed to output text file in ContentFixer::write2File", e);
+			//throw new ParsingException("Failed to output text file.", e);
 		}
 	}
 	/**
@@ -282,7 +344,8 @@ public class ContentFixer {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		ContentFixer cf = new ContentFixer("test_paragraphs");
-		cf.makeCleanContent();
+		//cf.makeCleanContent();
+		cf.outputCleanContent();
 	}
 
 }
