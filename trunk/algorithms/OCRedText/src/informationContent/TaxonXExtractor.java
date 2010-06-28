@@ -47,7 +47,7 @@ public class TaxonXExtractor {
 	 * 
 	 */
 
-	private File source = new File("Z:\\DATA\\Plazi\\2ndFetchFromPlazi\\taxonX-ants");
+	private File source = new File("Z:\\DATA\\Plazi\\2ndFetchFromPlazi\\test");
 	private String tableprefix = "plazi_ants_all";
 	private String benchmark = "plazi_ants_all_paragraphs_benchmark";
 	private String paragraphs = "plazi_ants_all_paragraphs";
@@ -57,7 +57,7 @@ public class TaxonXExtractor {
 	public TaxonXExtractor() {
 		try{
 			Class.forName("com.mysql.jdbc.Driver");
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/sourcedatasets?user=root&password=root");
+			conn = DriverManager.getConnection("jdbc:mysql://localhost/markedupdatasets?user=root&password=root");
 			Statement stmt = conn.createStatement();
 			stmt.execute("drop table if exists "+benchmark);
 			stmt.execute("create table if not exists "+benchmark+" (paraID varchar(100) NOT NULL, paragraphs text, isDescription varchar(5), primary key(paraID))");	
@@ -81,12 +81,19 @@ public class TaxonXExtractor {
 					//split by treatment
 					Document doc = builder.build(files[f]);
 					Element root = doc.getRootElement();
-					//XPath xpath = XPath.newInstance("taxon");
-					//xpath.addNamespace(root.getNamespace());
-					//List<Element> treatments = xpath.selectNodes(root,"/tax:taxonx/tax:taxonxBody/tax:treatment");
+
+					//remove all xmldata elements
+					List<Element> xmls = XPath.selectNodes(root,"//tax:xmldata");
+					Iterator<Element> it = xmls.iterator();
+					while(it.hasNext()){
+						Element x = it.next();
+						x.detach();
+						x.getParentElement().removeContent(x);
+					}
+										
 					List<Element> treatments = XPath.selectNodes(root,"/tax:taxonx/tax:taxonxBody/tax:treatment");
 					
-					for(int t = 1; t<treatments.size(); t++){
+					for(int t = 0; t<treatments.size(); t++){
 						Element e = (Element)treatments.get(t);
 						extractFromTreatment(fn, t, e);
 					}
@@ -134,6 +141,7 @@ public class TaxonXExtractor {
 
 	private StringBuffer getTextFromP(Element p, StringBuffer sb) {
 			int size = p.getContentSize();
+			//System.out.println(p.toString());
 			for(int c = 0; c < size; c++){
 				Content cont = p.getContent(c);
 				if(cont instanceof Element){
@@ -154,8 +162,9 @@ public class TaxonXExtractor {
 			Statement stmt = conn.createStatement();
 			text = text.replaceAll("\\s+", " ").trim();
 			System.out.println(paraID+":["+isDescription+"]:"+text);
-			stmt.execute("insert into "+benchmark+" values(\""+paraID+"\",\""+text+"\",\""+isDescription+"\"");
-			stmt.execute("insert into "+paragraphs+" values(\""+paraID+"\",\""+text+"\",\"\",\"\",");
+			
+			stmt.execute("insert into "+benchmark+" values(\""+paraID+"\",\""+text+"\",\""+isDescription+"\")");
+			stmt.execute("insert into "+paragraphs+" values(\""+paraID+"\",\""+text+"\",\"\",\"\")");
 		}catch(Exception e){
 			e.printStackTrace();
 		}
