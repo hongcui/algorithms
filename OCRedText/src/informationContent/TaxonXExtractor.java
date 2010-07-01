@@ -47,7 +47,7 @@ public class TaxonXExtractor {
 	 * 
 	 */
 
-	private File source = new File("Z:\\DATA\\Plazi\\2ndFetchFromPlazi\\test");
+	private File source = new File("Z:\\DATA\\Plazi\\2ndFetchFromPlazi\\taxonX-ants");
 	private String tableprefix = "plazi_ants_all";
 	private String benchmark = "plazi_ants_all_paragraphs_benchmark";
 	private String paragraphs = "plazi_ants_all_paragraphs";
@@ -57,13 +57,13 @@ public class TaxonXExtractor {
 	public TaxonXExtractor() {
 		try{
 			Class.forName("com.mysql.jdbc.Driver");
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/markedupdatasets?user=root&password=root");
+			conn = DriverManager.getConnection("jdbc:mysql://localhost/sourcedatasets?user=root&password=root");
 			Statement stmt = conn.createStatement();
 			stmt.execute("drop table if exists "+benchmark);
-			stmt.execute("create table if not exists "+benchmark+" (paraID varchar(100) NOT NULL, paragraphs text, isDescription varchar(5), primary key(paraID))");	
+			stmt.execute("create table if not exists "+benchmark+" (paraID varchar(100) NOT NULL, paragraph text, isDescription varchar(5), primary key(paraID))");	
 			
 			stmt.execute("drop table if exists "+paragraphs);
-			stmt.execute("create table if not exists "+paragraphs+" (paraID varchar(100) NOT NULL, paragraphs text, remark text, flag varchar(20), primary key(paraID))");			
+			stmt.execute("create table if not exists "+paragraphs+" (paraID varchar(100) NOT NULL, paragraph text, remark text, flag varchar(20), primary key(paraID))");			
 		}catch(Exception e){
 			e.printStackTrace();
 		}	
@@ -88,7 +88,7 @@ public class TaxonXExtractor {
 					while(it.hasNext()){
 						Element x = it.next();
 						x.detach();
-						x.getParentElement().removeContent(x);
+						//x.getParentElement().removeContent(x);
 					}
 										
 					List<Element> treatments = XPath.selectNodes(root,"/tax:taxonx/tax:taxonxBody/tax:treatment");
@@ -107,6 +107,7 @@ public class TaxonXExtractor {
 	private void extractFromTreatment(String fn, int t, Element treatment) {
 		int count = 0;
 		List<Element> elements = treatment.getChildren();
+		StringBuffer sb;
 		for(int i = 0; i<elements.size(); i++){
 			Element e = elements.get(i);
 			if(e.getName().compareTo("nomenclature") != 0){ //div, ref_group
@@ -114,10 +115,11 @@ public class TaxonXExtractor {
 				if(e.getAttribute("type") !=null){
 					type = e.getAttribute("type").getValue(); 
 				}
-				String isDescription = type.compareTo("description")==0? "yes" : "no";
+				String isDescription = type.compareTo("description")==0 || type.compareTo("key")==0? "yes" : "no";
 				count = extractParagraphs(fn, t, count, e, isDescription); //<tax:p> in element
 			}else{
-				String text = getTextFromP(e, new StringBuffer()).toString();
+				sb = new StringBuffer();
+				String text = getTextFromP(e, sb).toString();
 				insert2Tables(fn, t, count, text, "no");
 				count++;
 			}
@@ -145,10 +147,10 @@ public class TaxonXExtractor {
 			for(int c = 0; c < size; c++){
 				Content cont = p.getContent(c);
 				if(cont instanceof Element){
-					sb.append(getTextFromP((Element)cont, sb)+" ");
+					getTextFromP((Element)cont, sb);
 				}else if(cont instanceof Text){
 					String t = ((Text)cont).getTextNormalize();
-					//System.out.println(t);
+					t = t.trim();
 					sb.append(t+" ");
 				}
 			}
@@ -160,7 +162,7 @@ public class TaxonXExtractor {
 		try{
 			String paraID=fn+"_"+t+"_"+count;
 			Statement stmt = conn.createStatement();
-			text = text.replaceAll("\\s+", " ").trim();
+			text = text.replaceAll("\\s+", " ").trim().replaceAll("\"", "\\\\\"");
 			System.out.println(paraID+":["+isDescription+"]:"+text);
 			
 			stmt.execute("insert into "+benchmark+" values(\""+paraID+"\",\""+text+"\",\""+isDescription+"\")");
