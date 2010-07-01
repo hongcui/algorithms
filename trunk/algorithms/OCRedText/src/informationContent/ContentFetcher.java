@@ -520,9 +520,10 @@ public class ContentFetcher {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		String sourceFilePath="X:\\DATA\\BHL\\test";
+		//String sourceFilePath="X:\\DATA\\BHL\\test";
 		//String sourceFilePath="X:/DATA/Treatise/treatiseTest";
-
+		String sourceFilePath="X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset";
+		
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		String pnt1 = "FIELDIANA: BOTANY, VOLUME 40".toLowerCase();
 		String pnt2 = "BURGER: FLORA COSTARICENSIS".toLowerCase();

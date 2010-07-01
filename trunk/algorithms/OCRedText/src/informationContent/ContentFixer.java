@@ -40,7 +40,7 @@ public class ContentFixer {
 	
 	
 	//private File source =new File(Registry.SourceDirectory); //a folder of text documents to be annotated
-	private File source = new File("Z:\\DATA\\BHL\\useful"); //where output files will be saved
+	private File source = new File("X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset_cleaned"); //where output files will be saved
 	/**
 	 * 
 	 */
@@ -343,8 +343,9 @@ public class ContentFixer {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		ContentFixer cf = new ContentFixer("test_paragraphs");
-		//cf.makeCleanContent();
+		//ContentFixer cf = new ContentFixer("test_paragraphs");
+		ContentFixer cf = new ContentFixer("antssubset_paragraphs");
+		cf.makeCleanContent();
 		cf.outputCleanContent();
 	}
 
