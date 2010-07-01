@@ -36,18 +36,19 @@ my $debugp = 0; #debug pattern
 	#3/12/09
 	#my %NUMBERS = (0, 'zero', 1, 'one', 'first',2, 'two','second', 3, 'three','third', 'thirds',4,'four','fourth','fourths', 5,'five','fifth','fifths', 6,'six','sixth','sixths',7,'seven','seventh','sevenths', 8,'eight','eighths','eighth',9,'nine','ninths','ninth','tenths','tenth');
 	#4/22/09
-	my $NUMBERS = "zero|one|ones|first|two|second|three|third|thirds|four|fourth|fourths|quarter|five|fifth|fifths|six|sixth|sixths|seven|seventh|sevenths|eight|eighths|eighth|nine|ninths|ninth|tenths|tenth";
+	our $NUMBERS = "zero|one|ones|first|two|second|three|third|thirds|four|fourth|fourths|quarter|five|fifth|fifths|six|sixth|sixths|seven|seventh|sevenths|eight|eighths|eighth|nine|ninths|ninth|tenths|tenth";
 	#the following two patterns are used in mySQL rlike
 	my $PREFIX ="ab|ad|bi|deca|de|dis|di|dodeca|endo|end|e|hemi|hetero|hexa|homo|infra|inter|ir|macro|mega|meso|micro|mid|mono|multi|ob|octo|over|penta|poly|postero|post|ptero|pseudo|quadri|quinque|semi|sub|sur|syn|tetra|tri|uni|un|xero|[a-z0-9]+_";
 	my $SUFFIX ="er|est|fid|form|ish|less|like|ly|merous|most|shaped"; # 3_nerved, )_nerved, dealt with in subroutine
-	my $FORBIDDEN ="to|and|or|nor"; #words in this list can not be treated as boundaries "to|a|b" etc.
-	my $PRONOUN ="all|each|every|some|few|individual|both|other";
-	my $CHARACTER ="lengths|length|lengthed|width|widths|widthed|heights|height|character|characters|distribution|distributions|outline|outlines|profile|profiles|feature|features|form|forms|mechanism|mechanisms|nature|natures|shape|shapes|shaped|size|sizes|sized";#remove growth, for growth line. check 207, 3971
-	my $PROPOSITION ="above|across|after|along|around|as|at|before|beneath|between|beyond|by|for|from|in|into|near|of|off|on|onto|out|outside|over|than|throughout|toward|towards|up|upward|with|without";
+	#my $FORBIDDEN ="to|and|or|nor"; #words in this list can not be treated as boundaries "to|a|b" etc.
+	my $FORBIDDEN ="xxxxxxxxxxxxxx|yyyyyyyyyyyyyyyyy"; #disable $FORBIDDEN for unsupervisedOrganNameExtraction.pm.
+	our $PRONOUN ="all|each|every|some|few|individual|both|other";
+	our $CHARACTER ="lengths|length|lengthed|width|widths|widthed|heights|height|character|characters|distribution|distributions|outline|outlines|profile|profiles|feature|features|form|forms|mechanism|mechanisms|nature|natures|shape|shapes|shaped|size|sizes|sized";#remove growth, for growth line. check 207, 3971
+	our $PROPOSITION ="above|across|after|along|around|as|at|before|beneath|between|beyond|by|for|from|in|into|near|of|off|on|onto|out|outside|over|than|throughout|toward|towards|up|upward|with|without";
 	my $TAGS = "";
 	my $PLENDINGS = "[^aeiou]ies|i|ia|(x|ch|sh)es|ves|ices|ae|s";
-	my $CLUSTERSTRINGS = "group|groups|clusters|cluster|arrays|array|series|fascicles|fascicle|pairs|pair|rows|number|numbers|\\d+";
-	my $SUBSTRUCTURESTRINGS = "part|parts|area|areas|portion|portions";
+	our $CLUSTERSTRINGS = "group|groups|clusters|cluster|arrays|array|series|fascicles|fascicle|pairs|pair|rows|number|numbers|\\d+";
+	our $SUBSTRUCTURESTRINGS = "part|parts|area|areas|portion|portions";
 		
 	my $mptn = "((?:[mbq][,&]*)*(?:m|b|q(?=[pon])))";#grouped #may contain q but not the last m, unless it is followed by a p
 	my $nptn = "((?:[nop][,&]*)*[nop])"; #grouped #must present, no q allowed
@@ -57,7 +58,7 @@ my $debugp = 0; #debug pattern
 	
 	my $IGNOREPTN = "(assignment|resemb[a-z]+|like [A-Z]|similar|differs|differ|revision|genus|family|suborder|species|specimen|order|superfamily|class|known|characters|characteristics|prepared|subphylum|assign[a-z]*|available|nomen dubium|said|topotype|1[5-9][0-9][0-9])";
 		 
-	my $stop = $NounHeuristics::STOP;
+	our $stop = $NounHeuristics::STOP;
 	my $dataprefix = "";
 	
 
@@ -5299,14 +5300,17 @@ foreach my $pid (keys(%paragraphs)){
   	$text =~ s#(\w)([:;\.])(\w)#\1\2 \3#g; #absent;blade => absent; blade
   	$text =~ s#(\d\s*\.)\s+(\d)#\1\2#g; #1 . 5 => 1.5
   	$text =~ s#(\sdiam)\s+(\.)#\1\2#g; #diam . =>diam.
-  	$text =~ s#(\sca)\s+(\.)#\1\2#g;  #ca . =>ca.
-  	
+  	$text =~ s#(\sca)\s+(\.)#\1\2#g;  # ca . =>ca.
+	#$text = hideBrackets($text);#@todo: avoid splits in brackets.  this is how. Not doing anything because all paird brackets have been remove above.
+  	$text =~ s#(\d\s+(cm|mm|dm|m)\s*)\.(\s*[^A-Z])#\1\[DOT\]\3#g;
 	#@todo: use [PERIOD] replace . etc. in brackets. Replace back when dump to disk.
+	
 	@sentences = SentenceSpliter::get_sentences($text);#@todo: avoid splits in brackets. how?
+	
  	foreach (@sentences){
 		#may have fewer than $N words
 		if(!/\w+/){next;}
-
+		s#\[DOT\]#.#g;
 
     	#s#([^\d])\s*-\s*([^\d])#\1_\2#g;         #hyphened words: - =>_ to avoid space padding in the next step
 		s#\s*[-]+\s*([a-z])#_\1#g;                #cup_shaped, 3_nerved, 3-5 (-7)_nerved #5/30/09 add+
@@ -5369,6 +5373,40 @@ print "Total sentences = $SENTID\n";
 populateunknownwordstable();
 }
 
+sub hideBrackets{
+	my $text = shift;
+	my $hidden = "";
+	while($text=~/(.*?)(\([^()]*?[a-zA-Z][^()]*?\))(.*)/){
+		my $p1 = $1;
+		my $p2 = $2;
+		$text = $3;
+		$p2 =~ s#\.#\[DOT\]#g;
+		$hidden .= $p1.$p2; 
+	}
+	$hidden .=$text;
+	$text = $hidden;
+	$hidden = "";
+	while($text=~/(.*?)(\[[^\[\]]*?[a-zA-Z][^\[\]]*?\])(.*)/){
+		my $p1 = $1;
+		my $p2 = $2;
+		$text = $3;
+		$p2 =~ s#\.#\[DOT\]#g;
+		$hidden .= $p1.$p2; 
+	}
+	$hidden .=$text;
+	$text = $hidden;
+	$hidden = "";
+	while($text=~/(.*?)({[^{}]*?[a-zA-Z][^{}]*?})(.*)/){
+		my $p1 = $1;
+		my $p2 = $2;
+		$text = $3;
+		$p2 =~ s#\.#\[DOT\]#g;
+		$hidden .= $p1.$p2; 
+	}
+	$hidden .=$text;
+	
+	return $hidden;
+}
 sub recordpropernouns{
 	my $sent = shift;
 	$sent =~ s#[(\[{]\s*[A-Z]# #g;#hide *[ D*iagnosis prepared by ...]
@@ -5459,7 +5497,7 @@ sub tokenize{
     if($mode ne "all"){
     	$temp1 = length($sentence); #3/11/09
     	$temp2 = $temp1;#
-    	if($sentence =~ / [,:;\.]/){ 
+    	if($sentence =~ / [\[\](){},:;\.]/){ #6/20/10: need to stop at a bracket because only matches brackets are removed in the eariler process
 			$temp1 = $-[0];
 			#$index = $temp1;#
 		}
