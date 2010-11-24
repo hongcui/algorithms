@@ -10,5 +10,6 @@
 	<classpathentry kind="lib" path="lib/org.eclipse.core.runtime_3.5.0.v20090525.jar"/>
 	<classpathentry kind="lib" path="lib/saxpath.jar"/>
 	<classpathentry kind="lib" path="lib/jaxen-core.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/parsing-gui"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

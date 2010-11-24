@@ -12,6 +12,7 @@ import java.util.regex.*;
 
 
 import db.DatabaseAccessor;
+import fna.charactermarkup.ChunkedSentence;
 
 /**
  * @author hongcui
@@ -33,13 +34,16 @@ import db.DatabaseAccessor;
  * The user will need to create the database "sourceDatasets" and the user "termuser" before running this class
  */
 public class ContentFetcher {
-	private ArrayList pageNumberText = null;
-	private ArrayList footNoteTokens = null;
-	private File sourceFile = null;
-	private String prefix = null;
+	protected ArrayList pageNumberText = null;
+	protected ArrayList footNoteTokens = null;
+	protected File sourceFile = null;
+	protected String prefix = null;
 	public int lineLength = 78;
-	private Connection conn = null;
-	private static String url = ApplicationUtilities.getProperty("database.url");
+	protected boolean hasToCHeading = false;
+	protected boolean hasToCDots = false;
+	protected boolean hasIndex = false;
+	protected Connection conn = null;
+	protected static String url = ApplicationUtilities.getProperty("database.url");
 	/**
 	 * 
 	 */
@@ -66,7 +70,7 @@ public class ContentFetcher {
 	 *simply add paragraphs to the paragraphs table
 	 *
 	 */
-	public void readParagraphs(){
+	protected void readParagraphs(){
 		ArrayList<String> paraIDs = new ArrayList<String>();
 		ArrayList<String> paras = new ArrayList<String>();
 		ArrayList<String> sources = new ArrayList<String>();
@@ -85,6 +89,15 @@ public class ContentFetcher {
 			    StringBuffer para = new StringBuffer();
 			    while ((line = br.readLine()) != null){
 			    	String l = line.trim();
+			    	if(l.matches("^((TABLE OF )?CONTENTS|(Table [Oo]f )?Contents)$")){ 
+			    		this.hasToCHeading = true;
+			    	}
+			    	if(l.matches(".*?[a-zA-Z]\\s*[\\.]+\\s*[A-D]?[ivx\\d]+$")){
+			    		this.hasToCDots = true;
+			    	}
+			    	if(l.matches("INDEX$")){
+			    		this.hasIndex = true;
+			    	}
 			    	if(l.compareTo("") == 0 || l.length() <= this.lineLength * 2/3){
 			    		para.append(line).append(" ");
 			    		String content = para.toString().trim();
@@ -123,7 +136,7 @@ public class ContentFetcher {
 	 * @param para
 	 * @param source
 	 */
-	private void addParagraphs(ArrayList paraIDs, ArrayList paras, ArrayList sources){
+	protected void addParagraphs(ArrayList paraIDs, ArrayList paras, ArrayList sources){
 		
 		try{
 			DatabaseAccessor.insertParagraphs(this.prefix, paraIDs, paras, sources, conn);
@@ -150,20 +163,43 @@ public class ContentFetcher {
 				//prolog
 				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type='unassigned'", "paraID", paraIDs, paras, conn);
 
-				for( int j = 0; j<paraIDs.size(); j++){
-					int paraID = Integer.parseInt((String)paraIDs.get(j));
-					String para = (String)paras.get(j);
-					//if(para.trim().length() < this.lineLength){ //H4
-					if(!para.trim().matches("^((TABLE OF )?CONTENTS|(Table [Oo]f )?Contents)$")){ //H4
-						markAsType(paraID, "noncontent_prolog");
-					}else{
-						break;
+				if(this.hasToCHeading){
+					for( int j = 0; j<paraIDs.size(); j++){
+						int paraID = Integer.parseInt((String)paraIDs.get(j));
+						String para = (String)paras.get(j);
+						//if(para.trim().length() < this.lineLength){ //H4
+						if(!para.trim().matches("^((TABLE OF )?CONTENTS|(Table [Oo]f )?Contents)$")){ //H4
+							markAsType(paraID, "noncontent_prolog");
+						}else{
+							break;
+						}
+					}
+				}else if(this.hasToCDots){
+					for( int j = 0; j<paraIDs.size(); j++){
+						int paraID = Integer.parseInt((String)paraIDs.get(j));
+						String para = (String)paras.get(j);
+						if(!para.trim().matches(".*?[a-zA-Z]\\s*[\\.]+\\s*[A-D]?[ivx\\d]+$")){ //H4
+							markAsType(paraID, "noncontent_prolog");
+						}else{
+							break;
+						}
 					}
 				}
 				//epilogue
-				paraIDs = new ArrayList<String>();
+				if(this.hasIndex){
+					for( int j = paraIDs.size()-1; j>0; j--){
+						int paraID = Integer.parseInt((String)paraIDs.get(j));
+						String para = (String)paras.get(j);
+						if(!para.trim().matches("INDEX")){ //H5
+							markAsType(paraID, "noncontent_epilog");
+						}else{
+							break;
+						}
+					}
+				}
+				/*paraIDs = new ArrayList<String>();
 				paras = new ArrayList<String>();
-				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type='unassigned'", "paraID desc", paraIDs, paras, conn);
+				DatabaseAccessor.selectParagraphs(prefix, "source='"+source+"' and type='unassigned'", "paraID desc", paraIDs, paras, conn); //reversed order
 				for( int j = 0; j<paraIDs.size(); j++){
 					int paraID = Integer.parseInt((String)paraIDs.get(j));
 					String para = (String)paras.get(j);
@@ -172,7 +208,7 @@ public class ContentFetcher {
 					}else{
 						break;
 					}
-				}
+				}*/
 				//body
 				paraIDs = new ArrayList<String>();
 				paras = new ArrayList<String>();
@@ -193,22 +229,96 @@ public class ContentFetcher {
 						markAsType(paraID, "noncontent_footnote");
 						continue;
 					}
+					if(isHeading(paraID, para, source)){ //
+						markAsType(paraID, "content_heading");
+						continue;
+					}
 					if(isShortTexts(paraID, para, source)){ //
 						markAsType(paraID, "noncontent_shorttext");
 						continue;
 					}
 					if(isInterruptingPoint(paraID, para, source)){	//H3
-						markAdd2Last(paraID, "");				//set add2last
+						markAdd2Last(paraID, "yes");				//set add2last
 					}
 					markAsType(paraID, "content");
 				}
-				
+				traceBackFigTblContent(source);
+				fixBrackets(source);
+				fixAdd2LastHeadings(source);
 			}catch(Exception e){
 				e.printStackTrace();
 			}
 		}
 		
 	}
+	
+	protected void fixAdd2LastHeadings(String source){
+		//do nothing here, let subclass to extend.
+	}
+	private boolean isHeading(int paraID, String para, String source) {
+		String l = para.trim();
+		if(l.matches("^[a-z].*") || l.matches(".*? ([a-z]+|.*,|.*;)$") || l.toLowerCase().matches(".*?\\b("+ChunkedSentence.stop+"|"+ChunkedSentence.prepositions+"|.*?\\W)$")){ //, or ; at the end or a lower case word at the end
+			return false;
+		}
+		if(l.matches(".*?\\d+ \\d+.*")){
+			return false;
+		}
+		String[] words = l.replaceAll("\\d+", "").replaceAll("(?<!\\w)\\W(?!\\w)", " ").replaceAll("\\b("+ChunkedSentence.stop+"|"+ChunkedSentence.prepositions+")\\b", "").trim().split("\\s+");
+		int capitals = 0;
+		for(int i = 0; i<words.length; i++){
+			if(words[i].compareTo(words[i].toLowerCase())!=0){
+				capitals++;
+			}
+		}
+		if(capitals == words.length){
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * after idContent, fix broken brackets.
+	 * From the last content para track back to the beginning
+	 * record right and left brackets
+	 * if reading a record makes right != left, set its add2last to "yes" 
+	 */
+	private void fixBrackets(String source) {
+		try{
+			ArrayList<String> paraIDs = new ArrayList<String> ();
+			ArrayList<String> paras = new ArrayList<String> ();
+			ArrayList<String> types = new ArrayList<String> ();
+			String condition = "source='"+source+"'";
+			DatabaseAccessor.selectParagraphsTypes(prefix, condition, "paraID desc", paraIDs, paras, types, conn);
+			int left = 0;
+			int right = 0;
+			for(int i = 0; i < paraIDs.size(); i++){
+				int pid = Integer.parseInt(paraIDs.get(i));
+				String para = paras.get(i);
+				String type = types.get(i);
+				if(type.startsWith("content")){
+					String bs = para.replaceAll("[^\\[\\]]", "").trim().replaceAll("\\[\\]", "");
+					if(left == right && bs.indexOf("[")>=0){ //this is an extra left bracket, should not be counted
+						right += bs.replaceAll("[^\\]]", "").trim().length();
+					}else{
+						left += bs.replaceAll("[^\\[]", "").trim().length();
+						right += bs.replaceAll("[^\\]]", "").trim().length();
+					}
+					if(left < right){ 
+						this.markAdd2Last(pid, "y-[");
+					}else if(left > right){
+						//do nothing: there must be some extra left brackets
+					}else if(left == right){
+						left = 0;
+						right = 0;
+					}
+				}
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	
 	
 	/**
 	 * text and its preceding or following n text are also very short
@@ -248,8 +358,8 @@ public class ContentFetcher {
 	 * @param paraID
 	 * @param source
 	 */
-	private void markAdd2Last(int paraID, String suffix) {
-		String set = "add2last='yes'";
+	private void markAdd2Last(int paraID, String mark) {
+		String set = "add2last='"+mark+"'";
 		String condition = "paraID="+paraID;
 		try{
 			DatabaseAccessor.updateParagraph(prefix, set, condition, conn);
@@ -264,7 +374,7 @@ public class ContentFetcher {
 	 * @param para
 	 * @return
 	 */
-	private boolean isInterruptingPoint(int paraID, String para, String source) {
+	protected boolean isInterruptingPoint(int paraID, String para, String source) {
 		para = para.trim();
 
 		Pattern pattern = Pattern.compile("^([_ (\\[a-z0-9)\\]].*?)($|[\\.,]\\s+[A-Z].*)");//start with a lower case letter or a number
@@ -280,6 +390,8 @@ public class ContentFetcher {
 			if(/*start.matches("^[a-z].*") &&*/ start.length()>1){
 				return true; //else
 			}
+			
+			
 		}
 				
 		/*String first = para.substring(0, 1);
@@ -324,13 +436,13 @@ public class ContentFetcher {
 	 * @param source
 	 * @return
 	 */
-	private boolean isFigureTable(int paraID, String para, String source) {
+	protected boolean isFigureTable(int paraID, String para, String source) {
 		para = para.trim();
 		Pattern pattern = Pattern.compile("(Fig\\.|Figure|Table|FIG\\.|TABLE|FIGURE|FlG\\.|FlGURE)\\s+\\d+.*?");
 		Matcher m = pattern.matcher(para); 
 		if(m.matches()){
-			//traceBack
-			traceBackFigTblContent(paraID, source);
+			//traceBack should be done after all pagenumbers are found
+			//traceBackFigTblContent(paraID, source);
 			return true;
 		}
 		return false;
@@ -340,8 +452,28 @@ public class ContentFetcher {
 	 * capitalized short text before paraID should be set to non-content
 	 * @param paraID
 	 * @param source
+	 * 
+	 * 
 	 */
-	private void traceBackFigTblContent(int paraID, String source) {
+	
+	protected void traceBackFigTblContent(String source){
+		
+		try{//find all figtbl
+			ArrayList<String> paraIDs = new ArrayList<String> ();
+			ArrayList<String> paras = new ArrayList<String> ();
+			//find the paraID for the last pagenum
+			String condition = "source ='"+source+"' and type like '%figtbl%'";
+			DatabaseAccessor.selectParagraphs(prefix, condition, "paraID", paraIDs, paras, conn);
+			Iterator<String> it = paraIDs.iterator();
+			while(it.hasNext()){
+				int paraID= Integer.parseInt(it.next());
+				this.traceBackFigTblContent(paraID, source);
+			}
+		}catch(Exception e){
+				e.printStackTrace();
+		}
+	}
+	protected void traceBackFigTblContent(int paraID, String source) {
 		//String condition = "paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50 and paragraph COLLATE utf8_bin rlike '^[[:space:]]*[[:upper:]]'";
 		//String condition = "source='"+source+"'and paraID < "+paraID+" and paraID > (select max(paraID) from "+prefix+"_paragraphs where type like '%pagenum%' and paraID < "+paraID+") and length(paragraph) <=50";
 
@@ -379,7 +511,7 @@ public class ContentFetcher {
 	 * @param source
 	 * @return
 	 */
-	private boolean isPageNumber(int paraID, String para, String source) {
+	protected boolean isPageNumber(int paraID, String para, String source) {
 		para = para.trim();
 		if(para.matches("\\d+")){
 			return true;
@@ -431,7 +563,7 @@ public class ContentFetcher {
 	 * true if 
 	 * 1. para start with a (footnote) token AND
 	 * 2. the next paragraph started with a lower case letter or a non-listing number. That is, it is an interrupting point.
-	 * If it is not an interrupting point, then it is safter to treat the para as content.
+	 * If it is not an interrupting point, then it is safer to treat the para as content.
 	 * @param para
 	 * @return
 	 */
@@ -440,6 +572,9 @@ public class ContentFetcher {
 		boolean cond2  = false;
 		if(startWithAToken(para, source)){
 			cond1=true;
+		}
+		if(cond1 == false){
+			return false;
 		}
 		try{
 			ArrayList<String> paras = new ArrayList();
@@ -465,7 +600,7 @@ public class ContentFetcher {
 	 * @param para
 	 * @return
 	 */
-	private boolean startWithAToken(String para, String source) {
+	protected boolean startWithAToken(String para, String source) {
 		para = para.trim();
 		if(para.matches("^[(\\[{}\\])].*")){
 			return false;
@@ -507,7 +642,7 @@ public class ContentFetcher {
 		return cond1 && cond2;
 	}
 
-	private void markAsType(int paraID, String type) {
+	protected void markAsType(int paraID, String type) {
 		String set = "type='"+type+"'";
 		String condition = "paraID="+paraID;
 		try{
@@ -522,7 +657,9 @@ public class ContentFetcher {
 	public static void main(String[] args) {
 		//String sourceFilePath="X:\\DATA\\BHL\\test";
 		//String sourceFilePath="X:/DATA/Treatise/treatiseTest";
-		String sourceFilePath="X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset";
+		//String sourceFilePath="X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset";
+		//String sourceFilePath="X:\\DATA\\Plazi\\1stFetchFromPlazi\\plazi_fish_plain_text_english";
+		String sourceFilePath="X:\\DATA\\Treatise\\recent\\text\\test";
 		
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		String pnt1 = "FIELDIANA: BOTANY, VOLUME 40".toLowerCase();

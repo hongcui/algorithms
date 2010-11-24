@@ -20,7 +20,7 @@ import fna.charactermarkup.ChunkedSentence;
  * @author hongcui
  * this class removes the assumption from ContentFetcher that a paragraph is terminated by a blank line
  */
-public class ContentFetcherTreatise extends ContentFetcher {
+public class ContentFetcherTreatiseB extends ContentFetcher {
 	private int currentpagenumber = 0;
 	public String nonendings = "p\\.|pl\\.|fig\\.|Fig\\.|,|;|>|<|/|`|~|@|#|$|%|^|&|\\*|\\(|\\[|\\|:|\\+|=|-|_";
 	private String abbreviation = "\\b[a-zA-Z]\\.|\\d+\\.\\d+|cf\\.|sp\\.|subg\\.|pl\\.|fig\\.|Fig\\.";
@@ -29,7 +29,7 @@ public class ContentFetcherTreatise extends ContentFetcher {
 	 * @param footNoteTokens
 	 * @param sourceFilePath
 	 */
-	public ContentFetcherTreatise(ArrayList pageNumberText,
+	public ContentFetcherTreatiseB(ArrayList pageNumberText,
 			ArrayList footNoteTokens, String sourceFilePath) {
 		super(pageNumberText, footNoteTokens, sourceFilePath);
 		// TODO Auto-generated constructor stub
@@ -544,6 +544,19 @@ public class ContentFetcherTreatise extends ContentFetcher {
 	}
 	
 	/**
+	 * reset the add2last headings to content
+	 */
+	protected void fixAdd2LastHeadings(String source){
+		try{
+			String set = "type='content'";
+			String condition = "type='content_heading' and add2last like 'y%'";
+			DatabaseAccessor.updateParagraph(prefix, set, condition, conn);
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
@@ -551,7 +564,7 @@ public class ContentFetcherTreatise extends ContentFetcher {
 		String sourceFilePath="X:\\DATA\\Treatise\\recent\\text\\test";
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		ArrayList<String> footNoteTokens = new ArrayList<String>();
-		ContentFetcherTreatise cf = new ContentFetcherTreatise(pageNumberText, footNoteTokens, sourceFilePath);
+		ContentFetcherTreatiseB cf = new ContentFetcherTreatiseB(pageNumberText, footNoteTokens, sourceFilePath);
 		cf.readParagraphs();
 		cf.idContent();
 		
