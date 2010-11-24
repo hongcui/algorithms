@@ -42,7 +42,7 @@ public class DatabaseAccessor {
 		try {
 			//conn = DriverManager.getConnection(url);
 			stmt = conn.createStatement();
-			stmt.execute("create table if not exists "+prefix+"_paragraphs (paraID bigint not null primary key , source varchar(50), paragraph text(5000), type varchar(50), add2last varchar(10), remark varchar(50))");
+			stmt.execute("create table if not exists "+prefix+"_paragraphs (paraID bigint not null primary key , source varchar(500), paragraph text(5000), type varchar(50), add2last varchar(10), remark varchar(50))");
 			stmt.execute("delete from "+prefix+"_paragraphs");
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create table"+prefix+"_paragraphs::" + e);
@@ -175,7 +175,7 @@ public class DatabaseAccessor {
 		}*/
 	}
 
-	public static void selectParagraphs(String prefix, String condition, String orderby, ArrayList paraIDs, ArrayList paras, Connection conn) throws Exception{
+	public static void selectParagraphs(String prefix, String condition, String orderby, ArrayList<String> paraIDs, ArrayList<String> paras, Connection conn) throws Exception{
 		Hashtable<String, String> results = new Hashtable<String, String>(); 
 		//Connection conn = null;
 		Statement stmt = null;
@@ -243,6 +243,74 @@ public class DatabaseAccessor {
 		}*/
 	}
 
+	public static void selectParagraphsTypes(String prefix, String condition, String orderby, ArrayList paraIDs, ArrayList paras, ArrayList types, Connection conn) throws Exception{
+		Hashtable<String, String> results = new Hashtable<String, String>(); 
+		//Connection conn = null;
+		Statement stmt = null;
+		String statement = "select paraID, paragraph, type from "+prefix+"_paragraphs";
+		if(condition.compareTo("") != 0){
+			statement += " where "+condition; 
+		}
+		if(orderby.compareTo("") != 0){
+			statement += " order by "+orderby;
+		}
+		try {
+			//conn = DriverManager.getConnection(url);
+			stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(statement);
+			while(rs.next()){
+				paraIDs.add(rs.getInt(1)+"");
+				paras.add(rs.getString(2));
+				types.add(rs.getString(3));
+			}
+		} catch (Exception e) {
+			LOGGER.error("Couldn't select paragraphs and sources from table"+prefix+"_paragraphs::" + e);
+			e.printStackTrace();
+			System.exit(1);
+		} /*finally {
+            if (stmt != null) {
+				stmt.close();
+			}
+			if (conn != null) {
+				conn.close();
+			}
+		}*/
+	}
+	
+	public static void selectParagraphsTypesAdd2Last(String prefix, String condition, String orderby, ArrayList<String>  paraIDs, ArrayList<String>  paras, ArrayList<String>  types, ArrayList<String> add2last, Connection conn) throws Exception{
+		Hashtable<String, String> results = new Hashtable<String, String>(); 
+		//Connection conn = null;
+		Statement stmt = null;
+		String statement = "select paraID, paragraph, type, add2last, from "+prefix+"_paragraphs";
+		if(condition.compareTo("") != 0){
+			statement += " where "+condition; 
+		}
+		if(orderby.compareTo("") != 0){
+			statement += " order by "+orderby;
+		}
+		try {
+			//conn = DriverManager.getConnection(url);
+			stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(statement);
+			while(rs.next()){
+				paraIDs.add(rs.getInt(1)+"");
+				paras.add(rs.getString(2));
+				types.add(rs.getString(3));
+				add2last.add(rs.getString(4));
+			}
+		} catch (Exception e) {
+			LOGGER.error("Couldn't select paragraphs and sources from table"+prefix+"_paragraphs::" + e);
+			e.printStackTrace();
+			System.exit(1);
+		} /*finally {
+            if (stmt != null) {
+				stmt.close();
+			}
+			if (conn != null) {
+				conn.close();
+			}
+		}*/
+	}
 	public static void selectDistinctSources(String prefix, ArrayList sources, Connection conn) throws Exception{
 		Hashtable<String, String> results = new Hashtable<String, String>(); 
 		//Connection conn = null;

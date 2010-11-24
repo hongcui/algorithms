@@ -20,7 +20,7 @@ import db.DatabaseAccessor;
  * after ContentFetcher, ContentFixer removes non-content items and concatenate add2last paragraphs and provides clean content for further processes.
  * this class perform common operations needed for all OCRedText
  * this class calls other Fixer classes to perform collection specific functions.	
- * this class outputs text files containing cleaned content, which can be further processed by Type3PreMarkup or Type3Transformer.
+ * this class outputs text files containing cleaned content, which can be further processed by Type3PreMarkup i.e.Type3Transformer.
  */
 public class ContentFixer {
 	protected String paraTable = null;
@@ -40,7 +40,8 @@ public class ContentFixer {
 	
 	
 	//private File source =new File(Registry.SourceDirectory); //a folder of text documents to be annotated
-	private File source = new File("X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset_cleaned"); //where output files will be saved
+	//private File source = new File("X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset_cleaned"); //where output files will be saved
+	private File source = new File("X:\\DATA\\Treatise\\recent\\partB_cleaned");
 	/**
 	 * 
 	 */
@@ -64,7 +65,7 @@ public class ContentFixer {
 	 * category glossaries, abbreviations, and references
 	 * some noncontent_shorttext need to be saved
 	 */
-	public void makeCleanContent(){
+	protected void makeCleanContent(){
 		try{
 			DatabaseAccessor.createCleanParagraphTable(this.prefix, this.conn);
 		}catch(Exception e){
@@ -94,7 +95,7 @@ public class ContentFixer {
 	 * piece text segments back to text files
 	 * 
 	 */
-	public void outputCleanContent(){
+	protected void outputCleanContent(){
 		ArrayList<String> sources = new ArrayList<String>();
 		try{
 			DatabaseAccessor.selectDistinctSources(this.prefix, sources, this.conn);
@@ -149,7 +150,7 @@ public class ContentFixer {
 			ArrayList<String> paras = new ArrayList<String> ();
 			ArrayList<String> sources = new ArrayList<String> ();
 			ArrayList<String> paraIDs_add2 = new ArrayList<String> ();
-			String condition = "type ='content' and add2last='yes'";
+			String condition = "type ='content' and add2last like 'y%'";
 			try{
 				//get all "add2last" paragraphs
 				DatabaseAccessor.selectParagraphsSources(prefix.replaceAll("_clean", ""), condition, "paraID desc", paraIDs_add2, paras, sources, conn);
@@ -343,8 +344,8 @@ public class ContentFixer {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		//ContentFixer cf = new ContentFixer("test_paragraphs");
-		ContentFixer cf = new ContentFixer("antssubset_paragraphs");
+		ContentFixer cf = new ContentFixer("test_paragraphs");
+		//ContentFixer cf = new ContentFixer("antssubset_paragraphs");
 		cf.makeCleanContent();
 		cf.outputCleanContent();
 	}
