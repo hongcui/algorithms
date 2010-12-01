@@ -15,6 +15,7 @@ import db.DatabaseAccessor;
 import fna.charactermarkup.ChunkedSentence;
 
 /**
+ * $Id
  * @author hongcui
  * This class fetch the information content from a (OCRed) text document, where the flow of information content may be interrupted
  * by page numbers, footnotes, figures, and tables, etc.
