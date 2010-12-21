@@ -281,7 +281,7 @@ public class DatabaseAccessor {
 		Hashtable<String, String> results = new Hashtable<String, String>(); 
 		//Connection conn = null;
 		Statement stmt = null;
-		String statement = "select paraID, paragraph, type, add2last, from "+prefix+"_paragraphs";
+		String statement = "select paraID, paragraph, type, add2last from "+prefix+"_paragraphs";
 		if(condition.compareTo("") != 0){
 			statement += " where "+condition; 
 		}
@@ -325,7 +325,7 @@ public class DatabaseAccessor {
 				sources.add(rs.getString(1));
 			}
 		} catch (Exception e) {
-			LOGGER.error("Couldn't select distinct sources from table"+prefix+"_paragraphs::" + e);
+			LOGGER.error("Couldn't select distinct sources from table "+prefix+"_paragraphs::" + e);
 			e.printStackTrace();
 			System.exit(1);
 		} /*finally {
