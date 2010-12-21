@@ -91,7 +91,7 @@ public class ContentFetcherTreatiseB extends ContentFetcher {
 				    	m = p2.matcher(l);
 				    	if(m.matches()){
 				    		StringBuffer sb = new StringBuffer();
-				    		while(!l.endsWith(".")){
+				    		while(!l.endsWith(".")){ 
 				    			sb.append(" "+l);
 				    			line = br.readLine();
 				    			if(line !=null) l = line.trim();
@@ -163,7 +163,7 @@ public class ContentFetcherTreatiseB extends ContentFetcher {
 	    			}
 			    	//if this line is the end of a paragraph
 				   	if(l.compareTo("") == 0 || !hasUnclosedLeftBracket(l) && (
-				   			(l.matches(".*?[^A-Z]\\.$") /*&& l.length() < this.lineLength*/) ||
+				   			(l.matches(".*?[^A-Z]\\.\\]?$") /*&& l.length() < this.lineLength*/) || //changed from l.matches(".*?[^A-Z]\\.$")
 				   			 (l.length()<this.lineLength*2/3) && !l.matches(".*?\\W$"))){
 				   		para.append(line).append(" ");
 			    		String content = para.toString().trim();
