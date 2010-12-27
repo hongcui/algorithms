@@ -82,7 +82,9 @@ sub collectSeedParagraphs{
 		
 		@sentences = SentenceSpliter::get_sentences($p); #line -> sentences
 		my $length = @sentences;
-		if ( $length < $length_threshold ) { next; }
+		if ( $length < $length_threshold ) { #do not consider paragraphs shorter than $length_threshold sentences 
+			next;
+		}
 		($ad, $median) = absoluteDeviationInLength (@sentences);
 
 		#make feature list	
