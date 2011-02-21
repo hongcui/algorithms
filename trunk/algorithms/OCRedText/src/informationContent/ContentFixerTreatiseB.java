@@ -269,7 +269,14 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 		}		
 	}
 	
-	
+	/**
+	 * A ranked taxon may have multiple descriptions at genus level.
+	 * Collects higher taxon's name and a paragraph of description
+	 * Then
+	 * Collects genus descriptions and format them one by one
+	 * @param segment
+	 * @return
+	 */
 	private ArrayList<String> structureSegment(ArrayList<String> segment) {
 		int i = 0;
 		StringBuffer sb = new StringBuffer();
@@ -292,7 +299,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 		}
 		sb.append(othertext).append("_BREAK_");
 		
-		
+		//start to collect genus descriptions
 		while(i < segment.size()){
 			String genus = "";
 			do{
@@ -302,6 +309,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 				System.out.println();
 				System.out.println(genus);
 			}
+			//structure individual genus description
 			String[] threeparts = structureGenus(genus);
 			sb.append("<G>"+threeparts[0]+"<GD>"+threeparts[1]+"<GO>"+threeparts[2]).append("_BREAK_");
 		}
