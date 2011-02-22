@@ -67,11 +67,13 @@ public class ContentFetcherTreatiseB extends ContentFetcher {
 			    	String l = line.trim();
 			    	if(l.matches("^((TABLE OF )?CONTENTS|(Table [Oo]f )?Contents)$")){ 
 			    		this.hasToCHeading = true;
+			    		lines.add("endofline."); //to make sure CONTENTS stays on a new line.
 			    	}
 			    	if(l.matches(".*?[a-zA-Z]\\s*[\\.]+\\s*[A-D]?[ivx\\d]+$")){
 			    		this.hasToCDots = true;
 			    	}
 			    	if(l.matches("INDEX")){
+			    		lines.add("endofline."); //to make sure CONTENTS stays on a new line.
 			    		this.hasIndex = true;
 			    	}
 			    	l = l.replaceAll("–", "-");
@@ -91,7 +93,8 @@ public class ContentFetcherTreatiseB extends ContentFetcher {
 				    	m = p2.matcher(l);
 				    	if(m.matches()){
 				    		StringBuffer sb = new StringBuffer();
-				    		while(!l.endsWith(".")){ 
+
+				    		while(!l.endsWith(".") && !l.matches(".*?\\(p. [\\d-]+\\)$")){//added (p. 123) for part o
 				    			sb.append(" "+l);
 				    			line = br.readLine();
 				    			if(line !=null) l = line.trim();
@@ -560,8 +563,8 @@ public class ContentFetcherTreatiseB extends ContentFetcher {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		
-		String sourceFilePath="X:\\DATA\\Treatise\\recent\\text\\test";
+		//tests: testb, testo
+		String sourceFilePath="Z:\\DATA\\Treatise\\recent\\text\\testb";
 		ArrayList<String> pageNumberText = new ArrayList<String>();
 		ArrayList<String> footNoteTokens = new ArrayList<String>();
 		ContentFetcherTreatiseB cf = new ContentFetcherTreatiseB(pageNumberText, footNoteTokens, sourceFilePath);

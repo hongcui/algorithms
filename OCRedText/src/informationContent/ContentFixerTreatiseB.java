@@ -27,19 +27,26 @@ import org.jdom.Text;
 /**
  * $Id
  * @author hongcui
- * remove all non-description parts
+ * 
+ * remove all non-description parts to
  * form descriptions
  * one description contains: name, description, other-info sections
  * 
- * outputs xml files and a filename2taxon table
+ * outputs xml files a filename2taxon table
  * 
  * This was written for part B of the Treatise. Not extending ContentFixer because there is little that can be inhered. 
  * This program directly output treatments in XML format, which can then be processed as Type 4 Document in the semantic parser.
  */
+
 public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 	//configureables
+	//part b
 	protected String descriptionStartHeading = "SYSTEMATIC DESCRIPTIONS";
 	protected String descriptionEndHeading = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
+	//part o
+	//protected String descriptionStartHeading ="SYSTEMATIC DESCRIPTIONS OF THE CLASS TRILOBITA";
+	//protected String descriptionEndHeading = "INDEX";
+	protected String uncertain = "UNCERTAIN"; //eg. Family UNCERTAIN
 	//private String genusPattern = "^[A-Z][a-z]+ [-A-Z()ÄÉ.&, ]+, 1\\d{3}.*";
 	/*covers examples such as:
 	 * Linyiechara XINLUN in WANG Shui & others, 1978,
@@ -47,7 +54,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 	 * N. (Nitellopsis) (HY, 1889, p. 398) GRAMBAST & SOULIÉ-MÄRSCHE, 1972,
 	*/
 	private String genusPattern ="^([A-Z][a-z]+|[A-Z]\\. \\([A-Z][a-z]+\\)[^;×]*?) ([-A-Z()ÄÉ.&, ]|in|others)+,?[a-zA-ZÄÉ .,&]*? 1\\d{3}.*?p\\. \\d+ \\[.*?";
-	private String genusNomenPattern = "(.*?\\].?)\\s+[A-Z].*";
+	private String genusNomenPattern = "(.*?\\].?)(\\s*$|\\s+[A-Z].*)";
 	private Pattern genusNomenPtn = Pattern.compile(genusNomenPattern);
 	private String figPattern = "——\\s*FIG";
 	private Pattern figPtn = Pattern.compile(figPattern);
@@ -67,6 +74,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 	private ArrayList<String> padd2last = null;
 	private ArrayList<String> ranks = new ArrayList<String>();
 	private ArrayList<String> ranktaxon = null;
+	//private ArrayList<String> paraIDs = null;
 	private ArrayList<ArrayList<String>> allsegments = new ArrayList<ArrayList<String>>();
 	private File outputfolder = null;
 	
@@ -104,7 +112,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 			Statement stmt = conn.createStatement();
 			stmt.execute("drop table if exists "+prefix+"_filename2taxon");
 			stmt.execute("create table "+prefix+"_filename2taxon" + "("+tabledef+")");
-			
+			//DatabaseAccessor.createCleanParagraphTable(this.prefix+"_clean", conn);
 		}catch(Exception e){
 			e.printStackTrace();
 		}
@@ -116,8 +124,10 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 			DatabaseAccessor.selectDistinctSources(this.prefix, sources, this.conn);
 			Iterator<String> it = sources.iterator();
 			while(it.hasNext()){
-				//1. select descriptions
 				source = it.next();
+				//0. output cleaned paragraphs
+				//outputCleanParagraphs(source);
+				//1. select descriptions
 				getDescriptions(source);
 				//2. merge description parts
 				segmentDescriptions(source);
@@ -131,6 +141,33 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 		}
 	}
 	
+	/*private void outputCleanParagraphs(String source) {
+		try{
+			this.paraIDs = new ArrayList<String> ();
+			this.paragraphs = new ArrayList<String> ();
+			String condition = "source = '"+source+"' and type in ('content','content_heading')";
+			this.ptypes = new ArrayList<String>();
+			this.padd2last = new ArrayList<String>();
+			String orderby = "";
+			DatabaseAccessor.selectParagraphsTypesAdd2Last(prefix, condition, orderby, paraIDs, paragraphs, ptypes, padd2last, conn);
+			appendAdd2last();
+			//output Cleaned
+			Iterator<String> it = this.paragraphs.iterator();
+			ArrayList<String> pIDs = new ArrayList<String>();
+			ArrayList<String> sources = new ArrayList<String>();
+			int count = 0;
+			while(it.hasNext()){
+				it.next();
+				pIDs.add(count+"");
+				sources.add(source);
+				count++;
+			}
+			DatabaseAccessor.insertCleanParagraphs(this.prefix+"_clean", pIDs, paraIDs, paragraphs, sources, conn);
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}*/
+
 	/**
 	 * output xml files
 	 * @param source
@@ -248,7 +285,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 			Statement stmt = conn.createStatement();
 			String q = "insert into "+prefix+"_filename2taxon ("+ fields +") values ("+values+")";
 			if(debug){
-				System.out.println(q);
+				//System.out.println(q);
 			}
 			stmt.execute(q);
 			stmt.close();
@@ -281,23 +318,29 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 		int i = 0;
 		StringBuffer sb = new StringBuffer();
 		String nomenclature = "<N>";
-		do{
-			nomenclature+=segment.get(i) + " ";
-			i++;
-		}while(i<segment.size() && !segment.get(i).matches("^\\[.*?\\]$"));
-		nomenclature += segment.get(i++);
-		sb.append(nomenclature);
-		
-		if(i<segment.size()){
-			String description = "<ND>"+segment.get(i++);
-			sb.append(description);
+		if(!segment.get(i).matches("^[A-Z][a-z]+\\s+"+this.uncertain+"$")){ //not a parent rank uncertain group, collect information about the rank
+			do{
+				nomenclature+=segment.get(i) + " ";
+				i++;
+			}while(i<segment.size() && !segment.get(i).matches("^\\[.*?\\]$"));		
+			nomenclature += segment.get(i++);
+			sb.append(nomenclature);
+			
+			if(i<segment.size()){
+				String description = "<ND>"+segment.get(i++);
+				sb.append(description);
+			}
+			
+			String othertext = "<NO>";
+			while(i<segment.size() && !segment.get(i).matches(this.genusPattern)){//genus description
+				othertext += "<P>"+segment.get(i++);
+			}
+			sb.append(othertext).append("_BREAK_");
+		}else{
+			nomenclature += segment.get(i++);
+			sb.append(nomenclature).append("_BREAK_");
 		}
 		
-		String othertext = "<NO>";
-		while(i<segment.size() && !segment.get(i).matches(this.genusPattern)){//genus description
-			othertext += "<P>"+segment.get(i++);
-		}
-		sb.append(othertext).append("_BREAK_");
 		
 		//start to collect genus descriptions
 		while(i < segment.size()){
@@ -328,6 +371,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 	 * @return
 	 */
 	private String[] structureGenus(String genus) {
+		genus = genus.trim();
 		String[] threeparts = new String[3];
 		//threeparts[0] = genus.substring(0, genus.indexOf("].")+2); //some without the period
 		Matcher m = genusNomenPtn.matcher(genus);
@@ -423,7 +467,21 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 				System.err.println("descriptionStartHeading not found");
 				System.exit(3);
 			}
-			
+			/*remove non description paragraphs
+			for(int i = this.paraIDs.size()-1; i >=0; i--){
+				int id = Integer.parseInt(this.paraIDs.get(i));
+				if(id <= start){
+					this.paragraphs.remove(i);
+					this.ptypes.remove(i);
+					this.padd2last.remove(i);
+				}
+				if(id >= end){
+					this.paragraphs.remove(i);
+					this.ptypes.remove(i);
+					this.padd2last.remove(i);
+				}
+			}
+			*/
 			paraIDs = new ArrayList<String> ();
 			paras = new ArrayList<String> ();
 			condition = "source = '"+source+"' and type in ('content','content_heading') and paraID < "+end +" and paraID > "+start;
@@ -452,6 +510,7 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 				this.paragraphs.remove(i);
 				this.ptypes.remove(i);
 				this.padd2last.remove(i);
+				//this.paraIDs.remove(i);
 			}
 		}
 		
@@ -461,8 +520,8 @@ public class ContentFixerTreatiseB /*extends ContentFixer*/ {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		String paraTableName = "test_paragraphs";
-		String outputfolder = "X:\\DATA\\Treatise\\recent\\xml\\partB";
+		String paraTableName = "testb_paragraphs";
+		String outputfolder = "Z:\\DATA\\Treatise\\recent\\xml\\partB";
 		ContentFixerTreatiseB cftb = new ContentFixerTreatiseB(paraTableName, outputfolder);
 		cftb.makeCleanContent();
 	}
