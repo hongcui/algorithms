@@ -41,7 +41,7 @@ public class ContentFixer {
 	
 	//private File source =new File(Registry.SourceDirectory); //a folder of text documents to be annotated
 	//private File source = new File("X:\\DATA\\Plazi\\1stFetchFromPlazi\\antssubset_cleaned"); //where output files will be saved
-	private File source = new File("X:\\DATA\\Treatise\\recent\\partB_cleaned");
+	private File source = new File("Z:\\DATA\\Treatise\\recent\\partB_cleaned");
 	/**
 	 * 
 	 */
@@ -264,7 +264,7 @@ public class ContentFixer {
 		
 		
 		ArrayList<String> paraIDs_add2 = new ArrayList<String> ();
-		String condition = "type ='content' and add2last='yes'";
+		String condition = "type ='content' and add2last like 'y%'";
 		try{
 			//get all "add2last" paragraphs
 			DatabaseAccessor.selectParagraphsSources(prefix.replaceAll("_clean", ""), condition, "paraID desc", paraIDs_add2, paras, sources, conn);
@@ -344,7 +344,7 @@ public class ContentFixer {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		ContentFixer cf = new ContentFixer("test_paragraphs");
+		ContentFixer cf = new ContentFixer("testb_paragraphs");
 		//ContentFixer cf = new ContentFixer("antssubset_paragraphs");
 		cf.makeCleanContent();
 		cf.outputCleanContent();

@@ -297,7 +297,7 @@ public class ContentFetcher {
 				String para = paras.get(i);
 				String type = types.get(i);
 				if(type.startsWith("content")){
-					String bs = para.replaceAll("[^\\[\\]]", "").trim().replaceAll("\\[\\]", "");
+					String bs = para.replaceAll("[^\\[\\]]", "").trim().replaceAll("\\[\\]", "").replaceAll("\\[\\]", "").replaceAll("\\[\\]", "");
 					if(left == right && bs.indexOf("[")>=0){ //this is an extra left bracket, should not be counted
 						right += bs.replaceAll("[^\\]]", "").trim().length();
 					}else{
