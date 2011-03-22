@@ -1,3 +1,6 @@
+/**
+ * $Id$
+ */
 package informationContent;
 
 import java.sql.Connection;
