@@ -1,4 +1,4 @@
-/**
+/**$Id$
  * 
  */
 package db;
@@ -67,8 +67,8 @@ public class DatabaseAccessor {
 		try {
 			//conn = DriverManager.getConnection(url);
 			stmt = conn.createStatement();
-			stmt.execute("create table if not exists "+prefix+"_paragraphs (paraID bigint not null primary key, orgParaID bigint, source varchar(50), paragraph text(5000), remark varchar(50))");
-			stmt.execute("delete from "+prefix+"_paragraphs");
+			stmt.execute("drop table if exists "+prefix+"_paragraphs");
+			stmt.execute("create table if not exists "+prefix+"_paragraphs (paraID bigint not null primary key, orgParaID bigint, source varchar(50), paragraph text(5000), remark varchar(50))");		
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create table"+prefix+"_paragraphs::" + e);
 			e.printStackTrace();
@@ -115,7 +115,7 @@ public class DatabaseAccessor {
 		
 	}
 	
-	public static void insertCleanParagraphs(String prefix, ArrayList paraIDs, ArrayList orgParaIDs, ArrayList paras, ArrayList sources, Connection conn) throws Exception{
+	public static void insertCleanParagraphs(String prefix, ArrayList<String> paraIDs, ArrayList<String> orgParaIDs, ArrayList<String> paras, ArrayList<String> sources, Connection conn) throws Exception{
 		//Connection conn = null;
 		Statement stmt = null;
 
@@ -278,7 +278,6 @@ public class DatabaseAccessor {
 	}
 	
 	public static void selectParagraphsTypesAdd2Last(String prefix, String condition, String orderby, ArrayList<String>  paraIDs, ArrayList<String>  paras, ArrayList<String>  types, ArrayList<String> add2last, Connection conn) throws Exception{
-		Hashtable<String, String> results = new Hashtable<String, String>(); 
 		//Connection conn = null;
 		Statement stmt = null;
 		String statement = "select paraID, paragraph, type, add2last from "+prefix+"_paragraphs";
