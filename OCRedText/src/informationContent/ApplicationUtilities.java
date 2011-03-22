@@ -1,3 +1,4 @@
+//$Id$
 package informationContent;
 
 import java.io.FileInputStream;
@@ -7,7 +8,7 @@ import java.util.Properties;
 import org.apache.log4j.Logger;
 
 /**
- * $Id
+ * $Id$
  * @author 
  * accessor for application.properties
  */
