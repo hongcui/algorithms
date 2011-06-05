@@ -7,6 +7,7 @@ use SeedDescriptionExtraction;
 use unsupervisedOrganNameExtraction;
 
 print isAcronymDef("HL: Head length ab");
+
 sub isAcronymDef{
 	my $p = shift;
 	my $list_abbr = "(.*?)([A-Z]{2,})(.*)";

@@ -5296,13 +5296,13 @@ foreach my $pid (keys(%paragraphs)){
   	$text =~ s#\[[^\]\[]*?[a-zA-Z][^\]\[]*?\]# #g;  #remove [.a.]
   	$text =~ s#{[^{}]*?[a-zA-Z][^{}]*?}# #g; #remove {.a.}
   	$text =~ s#_#-#g;   #_ to -
-  	$text =~ s#\s+([:;\.])#\1#g;     #absent ; => absent;
-  	$text =~ s#(\w)([:;\.])(\w)#\1\2 \3#g; #absent;blade => absent; blade
-  	$text =~ s#(\d\s*\.)\s+(\d)#\1\2#g; #1 . 5 => 1.5
-  	$text =~ s#(\sdiam)\s+(\.)#\1\2#g; #diam . =>diam.
-  	$text =~ s#(\sca)\s+(\.)#\1\2#g;  # ca . =>ca.
+  	$text =~ s#\s+([:;\.])#$1#g;     #absent ; => absent;
+  	$text =~ s#(\w)([:;\.])(\w)#$1$2 $3#g; #absent;blade => absent; blade
+  	$text =~ s#(\d\s*\.)\s+(\d)#$1$2#g; #1 . 5 => 1.5
+  	$text =~ s#(\sdiam)\s+(\.)#$1$2#g; #diam . =>diam.
+  	$text =~ s#(\sca)\s+(\.)#$1$2#g;  # ca . =>ca.
 	#$text = hideBrackets($text);#@todo: avoid splits in brackets.  this is how. Not doing anything because all paird brackets have been remove above.
-  	$text =~ s#(\d\s+(cm|mm|dm|m)\s*)\.(\s*[^A-Z])#\1\[DOT\]\3#g;
+  	$text =~ s#(\d\s+(cm|mm|dm|m)\s*)\.(\s+[^A-Z])#$1\[DOT\]$3#g;
 	#@todo: use [PERIOD] replace . etc. in brackets. Replace back when dump to disk.
 	
 	@sentences = SentenceSpliter::get_sentences($text);#@todo: avoid splits in brackets. how?
