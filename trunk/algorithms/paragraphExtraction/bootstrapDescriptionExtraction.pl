@@ -91,7 +91,7 @@ my $mode = $ARGV[3];
 my $seedfile =$ARGV[4];
 my $prefix = $ARGV[5];
 
-my $debug = 0;
+my $debug = 1;
 
 	#########################################
 	# configurable parameters:
@@ -102,8 +102,8 @@ my $sentcountthresh = $ARGV[7]=~/\w/? $ARGV[7] : 5;
 my $itfactor2 = $ARGV[8]=~/\w/? $ARGV[8] : 1/3;
 my $charcountthresh = $ARGV[9]=~/\w/? $ARGV[9] : 15;
 my $organdensitythresh = $ARGV[10]=~/\w/? $ARGV[10] : 0.5;
-my $mothertable = $ARGV[11];
-my $benchmark = $ARGV[12]=~/\w/? $ARGV[12] :$prefix."_paragraphs_benchmark";
+my $mothertable = $ARGV[12];
+my $benchmark = $ARGV[11]=~/\w/? $ARGV[11] :$prefix."_paragraphs_benchmark";
 
 
 #my $itfactor1 = 1/3;
@@ -491,7 +491,14 @@ sub identifyParagraph{
 	}
 	
 	my %newp = ();
+	my $count = 0;
+	if($debug){
+		print "to process @tbds sentences\n";
+	}
 	foreach (@tbds){
+		if($debug){
+			print "process ".$count++."\n";
+		}
 		$select = $dbh->prepare('select paragraph from '.$prefix.'_paragraphs where paraID ="'.$_.'"');
 		$select->execute() or warn "$select->errstr\n";
 		my ($p) = $select->fetchrow_array();
@@ -581,12 +588,18 @@ sub isList{
 	
 	
 	print $p."\n" if $debug;
-	if ($p =~ /$list_a/i and ($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/)){ #add [0-9][a-z] Hong 6/25/2010
-		return 1;
-	}elsif($p =~ /$list_1/i and ($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/)){
-		return 1;
-	}elsif($p =~ /$list_i/i and ($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/)){
-		return 1;
+#	if ($p =~ /$list_a/i and    ($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/)){ #add [0-9][a-z] Hong 6/25/2010
+#		return 1;
+#	}elsif($p =~ /$list_1/i and ($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/)){
+#		return 1;
+#	}elsif($p =~ /$list_i/i and ($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/)){
+#		return 1;
+#	}
+
+	if($p=~/^figs?(ure|ures|[-;:,\.])/i or $p=~/^(\d+[a-z]-[a-z]|[a-z]\d+-\d+)/){
+		if($p =~ /$list_a/i or $p =~ /$list_1/i or $p =~ /$list_i/i){#may cause out of memory error!
+			return 1;
+		}
 	}
 	return 0;
 	
