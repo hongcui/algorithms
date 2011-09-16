@@ -148,11 +148,13 @@ my $organdensitythresh = 0.5;
 
 my $lbdry = "<@<";
 my $rbdry = ">@>";
+
 #my $source = "C:\\Documents and Settings\\hongcui\\Desktop\\WordNov2009\\Description_Extraction\\extractionSource\\Plain_text";
 #my $dir_to_save = "C:\\Documents and Settings\\hongcui\\Desktop\\WordNov2009\\Description_Extraction\\extractionData\\Description_paragraphs";
 my $false_organs="ignore|\[parenttag\]|general|ditto";
 my  @organ_names = ();
-
+my %taxonnames = ();
+my %headings = ();
 ##############################################
 #  connect to database
 ##############################################
@@ -531,12 +533,15 @@ sub istaxonname{
 	my ($name, $nametable) = @_;
 	if($nametable!~/\w/){
 		return 0;
+	}elsif($taxonnames{$name}==1){
+		return 1;
 	}else{
 		my $select = $dbh->prepare('select name from '.$nametable.' where name ="'.$name.'" or name like "% '.$name.' %" or name like "'.$name.' %" or name like "% '.$name.'"');
 		$select->execute() or warn "$select->errstr\n";
-		my ($name) = $select->fetchrow_array();
-		if(defined $name and $name=~/\w/){
-			print $name." is a taxon name\n" if $debugorgan;
+		my ($tname) = $select->fetchrow_array();
+		if(defined $tname and $tname=~/\w/){
+			print "$name matches [$tname] is a taxon name\n" if $debugorgan;
+			$taxonnames{$name} =1;
 			return 1;
 		}else{
 			return 0;
@@ -548,12 +553,19 @@ sub istaxonname{
 sub isheading{
 	my $name = shift;
 	my $result = 0;
+	if($name!~/\w/){
+		return $result;
+	}	
+	if($headings{$name}==1){
+		return 1;
+	}
 	#heading? e.g. Biology Unknown, Biology is a heading. 
 	my $select = $dbh->prepare('select count(*) from '.$source.' where paragraph COLLATE utf8_bin rlike "^'.$name.'[[.space.]]+[A-Z][a-z]+"');
 	$select->execute() or warn "$select->errstr\n";
 	my ($count) = $select->fetchrow_array();
 	if($count>5) {
 		print $name." is a heading\n" if $debugorgan;
+		$headings{$name} =1;
 		$result = 1;
 	}
 	#geographical location or people's name etc?
@@ -568,6 +580,7 @@ sub isheading{
 	($count) = $select->fetchrow_array();
 	if($count>=1) {
 		print $name." is a proper name\n" if $debugorgan;
+		$headings{$name} =1;
 		$result = 1;
 	}
 	return $result;
@@ -577,7 +590,7 @@ sub getAlsoPlurals{
 	my @organnames = @_;
 	my @all  = @organnames;
 	foreach (@organnames){
-		my $select = $dbh->prepare('select plural from '.$prefix.'_singularplural where singular ="'.$_.'"');
+	my $select = $dbh->prepare('select plural from '.$prefix.'_singularplural where singular ="'.$_.'"');
 		$select->execute() or warn "$select->errstr\n";
 		my ($plural) = $select->fetchrow_array();
 		push(@all, $plural);
