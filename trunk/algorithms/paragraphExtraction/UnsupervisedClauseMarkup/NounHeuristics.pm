@@ -10,11 +10,12 @@ use ReadFile;
 #this program applies a simple heuristics to find nouns
 #$STOP = "after|all|almost|also|and|amp|an|are|at|as|a|be|become|becomes|becoming|between|by|can|could|do|does|did|done|doing|have|had|has|how|here|from|if|in|it|its|is|was|were|be|been|being|less|may|might|more|not|of|often|or|on|so|some|sometimes|somewhat|should|soon|then|than|that|the|this|there|these|those|to|toward|towards|what|when|why|with|without|would";
 #$STOP ="a|about|above|across|after|all|almost|along|also|amp|an|and|are|as|at|be|because|become|becomes|becoming|been|before|being|beneath|between|beyond|but|by|ca|can|could|did|do|does|doing|done|each|even|few|for|frequently|from|had|has|have|here|how|if|in|into|is|it|its|less|may|might|more|most|much|near|not|occasionally|of|off|often|on|onto|or|over|rarely|should|so|some|sometimes|somewhat|soon|than|that|the|then|there|these|this|those|throughout|to|toward|towards|up|upward|very|was|well|were|what|when|where|which|why|with|without|would";
-$STOP ="a|about|above|across|after|almost|along|also|although|amp|an|and|are|as|at|be|because|become|becomes|becoming|been|before|being|behind|beneath|between|beyond|but|by|ca|can|could|did|do|does|doing|done|even|few|for|frequently|from|had|has|have|hence|here|how|I|if|in|into|inside|inward|is|it|its|less|may|might|more|most|much|near|no|not|occasionally|of|off|often|on|onto|or|out|outside|outward|over|rarely|should|so|sometimes|somewhat|soon|than|that|the|then|there|these|they|this|those|throughout|to|toward|towards|up|upward|very|was|we|well|were|what|when|where|which|while|why|with|within|without|would";
+$STOP ="a|about|above|across|after|almost|along|also|although|among|amongst|amp|an|and|are|as|at|be|because|become|becomes|becoming|been|before|being|behind|beneath|between|beyond|but|by|ca|can|could|did|do|does|doing|done|during|even|few|for|frequently|from|had|has|have|hence|here|how|I|if|in|into|inside|inward|is|it|its|less|may|might|more|most|much|near|no|not|occasionally|of|off|often|on|onto|or|out|outside|outward|over|rarely|should|so|sometimes|somewhat|soon|than|that|the|then|there|these|they|this|those|throughout|to|toward|towards|up|upward|very|was|we|well|were|what|when|where|which|while|why|with|within|without|would";
+
 #heurnouns($dir, $outfile);
 
 sub heurnouns{
-	my $text = shift;
+	my $content = shift;
 	%WORDS = ();
 	@NOUNS = ();
  
