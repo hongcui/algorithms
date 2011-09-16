@@ -288,7 +288,7 @@ $test->execute() or die $test->errstr."\n";
 
 my ($create, $del);
 
-$create = $dbh->prepare('create table if not exists '.$dataprefix.'_sentence (sentid int(11) not null unique, source varchar(500), sentence varchar(2000), originalsent varchar(2000), lead varchar(50), status varchar(20), tag varchar('.$taglength.'),modifier varchar(150), charsegment varchar(500),primary key (sentid)) engine=innodb');
+$create = $dbh->prepare('create table if not exists '.$dataprefix.'_sentence (sentid int(11) not null unique, source varchar(500), sentence text, originalsent text, lead varchar(50), status varchar(20), tag varchar('.$taglength.'),modifier varchar(150), charsegment varchar(500),primary key (sentid)) engine=innodb');
 $create->execute() or warn "$create->errstr\n";
 $del = $dbh->prepare('delete from '.$dataprefix.'_sentence');
 $del->execute();
