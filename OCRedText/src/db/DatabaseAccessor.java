@@ -55,7 +55,8 @@ public class DatabaseAccessor {
 					+ "paraID bigint not null primary key auto_increment , "
 					+ "source varchar(500), paragraph text(5000), "
 					+ "type varchar(50), add2last varchar(10), "
-					+ "remark varchar(50), " + "pageNum varchar(20)" + ")");
+					+ "remark varchar(50), " + "pageNum varchar(20)," 
+					+ "y1 int" + ")");
 			stmt.execute("delete from " + prefix + "_paragraphs");
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create table" + prefix + "_paragraphs::" + e);
@@ -112,51 +113,6 @@ public class DatabaseAccessor {
 
 	}
 
-	public static void insertParagraphs(String prefix, ArrayList paraIDs,
-			ArrayList paras, ArrayList sources, Connection conn, ArrayList types)
-			throws Exception {
-		// Connection conn = null;
-		Statement stmt = null;
-
-		// conn = DriverManager.getConnection(url);
-		stmt = conn.createStatement();
-		for (int i = 0; i < paras.size(); i++) {
-			// escape ' in source/para
-			int paraID = Integer.parseInt((String) paraIDs.get(i));
-			String source = ((String) sources.get(i)).replaceAll("'", "_");
-			String para = ((String) paras.get(i)).replaceAll("\\\\", "");
-			para = para.replaceAll("'", "\\\\'");
-			String type = "unassigned";
-			if (types != null) {
-				type = (String) types.get(i);
-				if (type == null && type.equals("")) {
-					type = "unassigned";
-				}
-			}
-
-			String value = paraID + ", '" + source + "', '" + para + "', '"
-					+ type + "'";
-			try {
-				stmt.execute("insert into "
-						+ prefix
-						+ "_paragraphs (paraID, source, paragraph, type) values ("
-						+ value + ")");
-			} catch (Exception e) {
-				System.out.println("Couldn't insert (" + value + ") to table "
-						+ prefix + "_paragraphs::");
-				LOGGER.error("Couldn't insert (" + value + ") to table "
-						+ prefix + "_paragraphs::" + e);
-				e.printStackTrace();
-				System.exit(1);
-			}
-		}
-		/*
-		 * if (stmt != null) { stmt.close(); } if (conn != null) { conn.close();
-		 * }
-		 */
-
-	}
-
 	public static void inserParagraph(String prefix, String para,
 			String source, String pageNum, Connection conn, String type)
 			throws Exception {
@@ -168,6 +124,28 @@ public class DatabaseAccessor {
 		try {
 			stmt.execute("insert into " + prefix
 					+ "_paragraphs (source, paragraph, type, pageNum) values ("
+					+ value + ")");
+		} catch (Exception e) {
+			System.out.println("Couldn't insert (" + value + ") to table "
+					+ prefix + "_paragraphs::");
+			LOGGER.error("Couldn't insert (" + value + ") to table " + prefix
+					+ "_paragraph::" + e);
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
+	public static void inserParagraph(String prefix, String para, Integer y1,
+			String source, String pageNum, Connection conn, String type)
+			throws Exception {
+		Statement stmt = null;
+		stmt = conn.createStatement();
+
+		String value = "'" + source + "', '" + para + "', '" + type + "', '"
+				+ pageNum + "', " + y1;
+		try {
+			stmt.execute("insert into " + prefix
+					+ "_paragraphs (source, paragraph, type, pageNum, y1) values ("
 					+ value + ")");
 		} catch (Exception e) {
 			System.out.println("Couldn't insert (" + value + ") to table "
@@ -207,6 +185,71 @@ public class DatabaseAccessor {
 			}
 
 			inserParagraph(prefix, para, source, pageNum, conn, type);
+		}
+	}
+	
+	public static void insertParagraphs(String prefix, ArrayList<String> paras,
+			String source, Connection conn, ArrayList<String> types,
+			String pageNum, ArrayList<Integer> y1s) throws Exception {
+		source = source.replaceAll("'", "_");
+		for (int i = 0; i < paras.size(); i++) {
+			// escape ' in source/para
+			String para = ((String) paras.get(i)).replaceAll("\\\\", "");
+			para = para.replaceAll("'", "\\\\'");
+			
+			String type = "unassigned";
+			if (types != null) {
+				type = (String) types.get(i);
+				if (type == null || type.equals("")) {
+					type = "unassigned";
+				}
+			}
+			
+			int y1 = (y1s != null ? y1s.get(i) : 0);
+			inserParagraph(prefix, para, y1, source, pageNum, conn, type);
+		}
+	}
+	
+	/*
+	 * discarded
+	 */
+	public static void insertParagraphs(String prefix, ArrayList paraIDs,
+			ArrayList paras, ArrayList sources, Connection conn, ArrayList types)
+			throws Exception {
+		// Connection conn = null;
+		Statement stmt = null;
+
+		// conn = DriverManager.getConnection(url);
+		stmt = conn.createStatement();
+		for (int i = 0; i < paras.size(); i++) {
+			// escape ' in source/para
+			int paraID = Integer.parseInt((String) paraIDs.get(i));
+			String source = ((String) sources.get(i)).replaceAll("'", "_");
+			String para = ((String) paras.get(i)).replaceAll("\\\\", "");
+			para = para.replaceAll("'", "\\\\'");
+			String type = "unassigned";
+			if (types != null) {
+				type = (String) types.get(i);
+				if (type == null && type.equals("")) {
+					type = "unassigned";
+				}
+			}
+
+			String value = paraID + ", '" + source + "', '" + para + "', '"
+					+ type + "'";
+			try {
+				stmt.execute("insert into "
+						+ prefix
+						+ "_paragraphs (paraID, source, paragraph, type) values ("
+						+ value + ")");
+			} catch (Exception e) {
+				System.out.println("Couldn't insert (" + value + ") to table "
+						+ prefix + "_paragraphs::");
+				LOGGER.error("Couldn't insert (" + value + ") to table "
+						+ prefix + "_paragraphs::" + e);
+				e.printStackTrace();
+				System.exit(1);
+			}
 		}
 		/*
 		 * if (stmt != null) { stmt.close(); } if (conn != null) { conn.close();
