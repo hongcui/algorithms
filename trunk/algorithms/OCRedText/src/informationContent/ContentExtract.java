@@ -6,8 +6,14 @@ import java.io.OutputStreamWriter;
 import org.jdom.*;
 import org.jdom.input.SAXBuilder;
 
+import com.sun.xml.internal.ws.api.pipe.NextAction;
+
+import sun.misc.GC.LatencyRequest;
+
 import beans.ColumnBean;
 import beans.ParagraphBean;
+
+import java.io.DataInputStream;
 import java.io.FileNotFoundException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -57,10 +63,12 @@ public class ContentExtract {
 	protected boolean newNextPara = false; // to specify the next line should be
 											// a
 											// new paragraph
-	protected String figurePattern = "(FlG|FIG)\\s?\\.\\s+\\d+\\s?\\.\\s+.*?";
-	protected String tablePattern = "(TABLE)\\s+\\d+\\s*\\..*?";
-	protected String figtblTxtPattern = "^(\\d[a-z])|[a-z]\\d+|[a-z]+|[A-Z]+|([A-Z][a-z]*(\\s[A-Z][a-z]*)*)|\\([A-Z][a-z]*\\)";
+	protected String figurePattern = "(FlG|F\\s?i\\s?G|F\\s?I\\s?G|F\\s?i\\s?g)\\s?\\.\\s+\\d+\\s?\\.\\s+.*?";
+	protected String figException = "";
+	protected String tablePattern = "(TABLE|Table)\\s+\\d+\\s*\\..*?";
+	protected String figtblTxtPattern;
 	protected String innerSectionPattern = "^([A-Z]+\\s?)+[A-Z]+";
+	protected String taxonNamePattern = "^\\??[A-Z]([a-z]+)\\s([A-Zжид]\\.?\\s?([A-Zжид']+))";
 
 	protected String startText = "SYSTEMATIC DESCRIPTIONS";// define the first
 															// line
@@ -71,44 +79,105 @@ public class ContentExtract {
 	protected boolean contentEnded = false;
 	protected String cleanTableSurfix = "_clean_paragraphs";
 	protected String outputPath = "E:\\work_data\\clean_o\\";
+	protected String txtPath = "E:\\work_data\\txt\\";
+	protected String txtFileSuffix = ".txt";
+	protected int lengthOfFootnoteKey = 50;
+	protected int spacefixed = 0;
+	
+	Hashtable<String, String> copiedTxtHash = new Hashtable<String, String>();
+	protected Hashtable<String, String> footnotes = new Hashtable<String, String>();
+
 
 	// regular figurepattern:
 	// (Fig\\.|Figure|Table|FIG\\s?\\.|TABLE|FIGURE|FlG\\.|FlGURE)\\s+\\d+\\s*\\.\\s+.*?
-
 	/**
 	 * 
 	 */
 	public ContentExtract() {
 		String sourceFilePath = "";
 		this.outputPath = "E:\\work_data\\clean\\";
-
-		// volume o
-		sourceFilePath = "E:\\work_data\\xml\\xml_o";
-		this.startText = "SYSTEMATIC DESCRIPTIONS";
-		this.endText = "REFERENCES";
-		this.startPage = "331";
-		/*
-		// volume b
-		sourceFilePath = "E:\\work_data\\xml\\xml_b";
-		this.startText = "SYSTEMATIC DESCRIPTIONS";
-		this.startPage = "108";
-		this.endText = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
-
-		// volume h
-		sourceFilePath = "E:\\work_data\\xml\\xml_h";
-		this.startText = "ANATOMY";
-		this.startPage = "27";
-		this.endText = "REFERENCES";
-*/
-		// volume e_3
-		sourceFilePath = "E:\\work_data\\xml\\xml_e_3";
-		this.startText = "PALEOZOIC DEMOSPONGES";
-		this.startPage = "9";
-		this.endText = "RANGES OF TAXA";
-		this.figurePattern = "(FlG|FIG)\\s?\\.\\s+\\d+(\\s?\\.\\s+)?.*?"; //exception: FIG. 33a-d. Grow, p47
-		this.figtblTxtPattern = "^(\\d\\d?[a-z])(\\s?\\d\\d?[a-z])*|[a-z]\\d+|[a-z]+|[A-Z]+|([A-Z][a-z]*(\\s[A-Z][a-z]*)*)|\\([A-Z][a-z]*\\)";//exception: p52
+		this.figtblTxtPattern = "^\\d+(\\.\\d+)?\\s?\\??mm?" +
+				"|(\\d\\d?[a-z]*\\d?)(\\s?\\d\\d?[a-z])*\\'*" +
+				"|[a-z0-9]*" +
+				"|[a-z]+" +
+				"|[A-Z]+\\'*" +
+				"|([A-Z][a-z]*(\\s[A-Z][a-z]*)*)" +
+				"|([A-Z][a-z]*\\s)?\\([A-Z][a-z]*\\)" + 
+				"|\\([a-z]+(\\s[a-z]+)*\\)";
+//(transmedian,
+//		anterior lateral)
+			
+//		// volume o
+//		sourceFilePath = "E:\\work_data\\xml\\xml_o";
+//		this.startText = "SYSTEMATIC DESCRIPTIONS";
+//		this.endText = "REFERENCES";
+//		this.startPage = "331";
+//		
+//		// volume b
+//		sourceFilePath = "E:\\work_data\\xml\\xml_b";
+//		this.startText = "SYSTEMATIC DESCRIPTIONS";
+//		this.startPage = "108";
+//		this.endText = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
+//				
+//		// volume h --nothing in this volume
+//		sourceFilePath = "E:\\work_data\\xml\\xml_h";
+//		this.startText = "ANATOMY";
+//		this.startPage = "27";
+//		this.endText = "REFERENCES";
+//
+//		// volume e_2 --nothing in this volume
+//		sourceFilePath = "E:\\work_data\\xml\\xml_e_2";
+//		this.startText = "GENERAL FEATURES OF THE PORIFERA";
+//		this.startPage = "29";
+//		this.endText = "GLOSSARY OF MORPHOLOGICAL TERMS";
+//
+//		// volume e_3 
+//		sourceFilePath = "E:\\work_data\\xml\\xml_e_3";
+//		this.startText = "PALEOZOIC DEMOSPONGES";
+//		this.startPage = "9";
+//		this.endText = "RANGES OF TAXA";
+//		this.figException = "FIG. 33a";
+//		// exception: FIG. 33a-d.Grow, p47
+//		//this.figurePattern = "(FlG|FIG)\\s?\\.\\s+\\d+(\\s?\\.\\s+)?.*?";
+//		// exception: p52(2b2c, 2b 2c) p57(500 ?m; 50?m; 20 mm; 29mm; 0.125 mm; Erylus (Erylus))
 		
-
+//		//volume h_2 - problem of table content
+//		sourceFilePath = "E:\\work_data\\xml\\h_2";
+//		this.startText = "BRACHIOPODA";
+//		this.startPage = "60";
+//		this.endText = ""; //no end, till the last word
+		
+//		//volume h_3 - problem of missing columns; long figure text
+//		sourceFilePath = "E:\\work_data\\xml\\h_3";
+//		this.startText = "PRODUCTIDINA";
+//		this.startPage = "4";
+//		this.endText = "REFERENCES";
+		
+//		//volume h_4 - problem of missing text; other pattern of figure text
+//		sourceFilePath = "E:\\work_data\\xml\\h_4";
+//		this.startText = "PENTAMERIDA";
+//		this.startPage = "41";
+//		this.endText = "NOMENCLATORIAL NOTE";
+		
+		//volume h_5 - problem of wrong text
+		sourceFilePath = "E:\\work_data\\xml\\h_5";
+		this.startText = "SPIRIFERIDA";
+		this.startPage = "47";
+		this.endText = "NOMENCLATORIAL NOTE";
+//		
+//		//volume h_6 
+//		//may not work for space fixing since copied text are not by line
+//		sourceFilePath = "E:\\work_data\\xml\\h_6";
+//		this.startText = "SYSTEMATIC DESCRIPTIONS:";
+//		this.startPage = "262";
+//		this.endText = "AFFINITIES OF BRACHIOPODS AND TRENDS IN"; //page2822
+//		
+//		//volume l_4
+//		sourceFilePath = "E:\\work_data\\xml\\l_4";
+//		this.startText = "SYSTEMATIC DESCRIPTIONS";
+//		this.startPage = "21";
+//		this.endText = "EXPLANATION OF CORRELATION CHART";
+		
 		
 		this.sourceFile = new File(sourceFilePath);
 		this.prefix = sourceFile.getName();
@@ -140,12 +209,15 @@ public class ContentExtract {
 		int minX = 1000, maxY = 0;
 		int x1 = 0, y1 = 0;
 		int pageNum_y1 = 0;
+		int firstline_y1 = 0; 
+		String firstline = "";
 		int last_y1 = 0; // need this to separate obvious paragraph
 
 		ArrayList<ColumnBean> columns = new ArrayList<ColumnBean>();
-
+		
 		ArrayList<String> paras = new ArrayList<String>();
 		ArrayList<String> types = new ArrayList<String>();
+		ArrayList<Integer> y1s = new ArrayList<Integer>();
 
 		// page number lines, may be 1 or 2 lines
 		ArrayList<String> pageNum_para = new ArrayList<String>();
@@ -164,14 +236,29 @@ public class ContentExtract {
 					y1 = Integer.parseInt(coords[1]);
 				}
 
-				// if the first line is page number, it should be excluded from
-				// this part
-				if (i == 0) {
+				//find page number: may be the first or second line
+				if (i <= 1) {
+					if (i == 0) {
+						firstline_y1 = y1;
+						firstline = line;
+					}
+					
 					if (maybePageNumber(line.trim())) {
-						pageNum_para.add(line);
+						if (i == 0) {//page number is first line
+							pageNum_para.add(line);
+						} else {//page number is second line
+							int diff = (y1 > firstline_y1 ? y1 - firstline_y1 : firstline_y1 - y1);
+							if (diff < 16) {
+								pageNum_para.add(firstline + " " + line);
+								//reset paras and types to clear page title
+								paras = new ArrayList<String>();
+								types = new ArrayList<String>();
+								y1s = new ArrayList<Integer>();
+							}
+						}
 						actgualPageNum = line;
 						pageNum_y1 = y1;
-						continue;
+						continue;	
 					}
 				}
 
@@ -192,7 +279,7 @@ public class ContentExtract {
 					}
 				}
 
-				// check if the second line is description of page number
+				// check later page title
 				int diff = (y1 > pageNum_y1 ? y1 - pageNum_y1 : pageNum_y1 - y1);
 				if (diff < 16) {
 					pageNum_para.add(line);
@@ -201,7 +288,7 @@ public class ContentExtract {
 
 				if (y1 < maxY) {
 					// anothe column
-					ColumnBean cb = new ColumnBean(paras, types);
+					ColumnBean cb = new ColumnBean(paras, types, y1s);
 
 					if (needSwitch) { // switch this column with last column
 						assert (columns.size() > 0);
@@ -215,8 +302,9 @@ public class ContentExtract {
 					}
 					paras = new ArrayList<String>();
 					types = new ArrayList<String>();
+					y1s = new ArrayList<Integer>();
 
-					if (x1 < minX) {
+					if (x1 < minX - 20) {//add a threshold
 						// this new column need to switch with the one just
 						// added into columns
 						needSwitch = true;
@@ -230,12 +318,12 @@ public class ContentExtract {
 					minX = (x1 < minX ? x1 : minX);
 					maxY = (y1 > maxY ? y1 : maxY);
 				}
-				readLine(paras, types, line, y1, last_y1);
+				readLine(paras, types, y1s, line, y1, last_y1);
 			}
 		}
 
 		// add the last column
-		ColumnBean cb = new ColumnBean(paras, types);
+		ColumnBean cb = new ColumnBean(paras, types, y1s);
 		if (needSwitch) {
 			assert (columns.size() > 0);
 			ColumnBean temp = columns.get(columns.size() - 1);
@@ -252,6 +340,63 @@ public class ContentExtract {
 
 		System.out.println("--" + pageNum + " fetched");
 	}
+	
+	/**
+	 * 
+	 * @param fileName
+	 */
+	protected void getCopiedText(String fileName) {
+		File txtFile = new File(txtPath + fileName + txtFileSuffix);
+		try {
+			FileInputStream fstream = new FileInputStream(txtFile);
+			DataInputStream in = new DataInputStream(fstream);
+			BufferedReader br = new BufferedReader(
+					new InputStreamReader(in));
+			String line = "";
+			while ((line = br.readLine()) != null) {
+				String l = line.trim();
+				if (!l.equals("")) {
+					//original line
+					copiedTxtHash.put(l.replaceAll("\\s", ""), l);
+					
+					//line without the last word
+					int lastSpaceIndex = l.lastIndexOf(" ");
+					if (lastSpaceIndex > 0) {
+						String prefix_l = l.substring(0, lastSpaceIndex); //drop the last word
+						String key = prefix_l.replaceAll("\\s", "");
+						copiedTxtHash.put(key, prefix_l);
+						
+						//footnote
+						if (prefix_l.matches("^\\d[A-Z][a-z]+,?\\s.*?")) {
+							key = key.substring(1);
+							if (key.length() > lengthOfFootnoteKey) {
+								key = key.substring(0, lengthOfFootnoteKey);
+							}
+							footnotes.put(key, prefix_l.substring(1));
+						}
+					}
+					
+					//line without the first word
+					int firstSpaceIndex = l.indexOf(" ");
+					if (firstSpaceIndex > 0) {
+						String surfix_l = l.substring(firstSpaceIndex, l.length()); // drop the first word
+						String key = surfix_l.replaceAll("\\s", "");
+						copiedTxtHash.put(key, surfix_l);
+					}
+					
+					//line without the first and the last word
+					if (firstSpaceIndex > 0 && lastSpaceIndex > firstSpaceIndex) {
+						String middle_l = l.substring(firstSpaceIndex, lastSpaceIndex);
+						String key = middle_l.replaceAll("\\s", "");
+						copiedTxtHash.put(key, middle_l);
+					}
+				}					
+			}
+			in.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 
 	/**
 	 * read xml page by page
@@ -263,12 +408,20 @@ public class ContentExtract {
 		File[] allFiles = sourceFile.listFiles();
 		for (int i = 0; i < allFiles.length; i++) {
 			if (contentEnded) {
-				System.out.println("reached last line in last file");
+				System.out.println("reached last line in previous file");
 				return;
 			}
+
 			File xmlfile = allFiles[i];
 			SAXBuilder sb = new SAXBuilder();
 			String source = allFiles[i].getName();
+
+			// read txt into a hashtable
+			String fileName = source.substring(0, source.indexOf("."));
+			copiedTxtHash = new Hashtable<String, String>();
+			getCopiedText(fileName);
+
+			// read xml file
 			try {
 				Document doc = (Document) sb.build(xmlfile);
 
@@ -303,6 +456,83 @@ public class ContentExtract {
 			}
 		}
 	}
+	
+	/**
+	 * use four hash tables to fix incorrect space in xml 
+	 * @param line
+	 * @return
+	 */
+	protected String fixSpace(String line) {
+		String lastword = ""; //the last word
+		String firstword = "";
+		String line_forCompare = line;
+		
+		//original compare
+		String key = line_forCompare.replaceAll("\\s", "");
+		String fixed_txt = copiedTxtHash.get(key);
+		if (fixed_txt != null) {
+			if (fixed_txt.length() < line_forCompare.length()) {
+				spacefixed++;
+				return fixed_txt;
+			} else {
+				return line;
+			}		
+		}
+		
+		//drop last word and compare
+		int lastSpaceIndex = line.lastIndexOf(" ");
+		if (lastSpaceIndex > 0) {
+			line_forCompare = line.substring(0, lastSpaceIndex);
+			lastword = line.substring(lastSpaceIndex, line.length());
+			key = line_forCompare.replaceAll("\\s", "");
+			fixed_txt = copiedTxtHash.get(key);
+			if (fixed_txt != null) {
+				if (fixed_txt.length() < line_forCompare.length()) {
+					spacefixed++;
+					return fixed_txt + lastword; 
+				} else {
+					return line;
+				}
+			}
+		}	
+		
+		//drop the first word and compare
+		int firstSpaceIndex = line.indexOf(" ");
+		if (firstSpaceIndex > 0) {
+			line_forCompare = line.substring(firstSpaceIndex, line.length());
+			firstword = line.substring(0, firstSpaceIndex);
+			key = line_forCompare.replaceAll("\\s", "");
+			fixed_txt = copiedTxtHash.get(key);
+			if (fixed_txt != null) {
+				if (fixed_txt.length() < line_forCompare.length()) {
+					spacefixed++;
+					//may match the txt without leading space
+					fixed_txt = firstword + " " + fixed_txt;					
+					return fixed_txt.replaceAll("\\s\\s", " ");
+				} else {
+					return line;
+				}
+			}
+		}
+		
+		//drop the first and the last word and compare
+		if (firstSpaceIndex > 0 && lastSpaceIndex > 0 && lastSpaceIndex > firstSpaceIndex) {
+			line_forCompare = line.substring(firstSpaceIndex, lastSpaceIndex);
+			key = line_forCompare.replaceAll("\\s", "");
+			fixed_txt = copiedTxtHash.get(key);
+			if (fixed_txt != null) {
+				if (fixed_txt.length() < line_forCompare.length()) {
+					spacefixed++;
+					fixed_txt = firstword + " " + fixed_txt + " " + lastword;					
+					return fixed_txt.replaceAll("\\s\\s", " ");
+				} else {
+					return line;
+				}
+			}
+		}
+		
+		return line;
+	}
 
 	/**
 	 * decide add line as a separate paragraph or append line to last record
@@ -311,11 +541,13 @@ public class ContentExtract {
 	 * @param types
 	 * @param line
 	 */
-	protected void readLine(ArrayList<String> paras, ArrayList<String> types,
+	protected void readLine(ArrayList<String> paras, ArrayList<String> types, ArrayList<Integer> y1s, 
 			String line, int y1, int last_y1) {
 		line = replaceIllegalCharacter(line);
 		String l = line.trim();
 		if (!l.equals("")) {
+			l = fixSpace(l);
+
 			this.totalLength += l.length();
 			this.linecount++;
 			this.lineLength = this.totalLength / this.linecount;
@@ -323,8 +555,10 @@ public class ContentExtract {
 			newNextPara = false; // set to be false after getting the last value
 
 			String lastPara = "";
+			String lastType = "";
 			if (paras.size() > 0) {
 				lastPara = paras.get(paras.size() - 1);
+				lastType = types.get(types.size() - 1);
 			}
 
 			String type = "unassigned";
@@ -334,11 +568,16 @@ public class ContentExtract {
 				newNextPara = true;
 				type = "noncontent_pagenum";
 			} else if (isUncertain(l)) {
-				type = "noncontent_uncertain";
+				type = "noncontent_innersection";
+				if (isCombinedUnCertain(l, lastPara)) {
+					newPara = false;
+				}
+				newNextPara = true; 
 			} else if (isInnerSection(l)) {
 				if (isCombinedTaxonName(l, lastPara)) {
 					// add up with new type
 					type = "content_taxonname";
+					newPara = false; /*set newPara to be false if combined taxon name*/
 				} else {
 					newPara = true;
 					type = "noncontent_innersection";
@@ -373,26 +612,36 @@ public class ContentExtract {
 				newPara = true;// "INDEX" should be a separate paragraph
 				newNextPara = true;
 				type = "noncontent_epilog";
+			} else if (isFootNote(l)) {
+				newPara = true;
+				type = "noncontent_footnote";
+			} else if (l.matches("Suborder|Subfamily|Family|Order")) {
+				//v_e_3 page49
+				newPara = true; 
 			}
 
 			// use y-coordinate to separate paragraph
-			if (y1 - last_y1 > 80) {
+			if (y1 - last_y1 > 65) {
 				newPara = true;
 			}
+			
+//			if (lastPara.endsWith(".") && y1 > last_y1 + 70) {
+//				newPara = true;
+//			}
 
 			// use period and length of line to separate paragraph
-			if (l.length() <= this.lineLength * 2 / 3
-					|| (l.endsWith(".") 
-							&& (y1 > last_y1 + 15) /*different line*/ 
-							&& l.length() < lastLength - 10)/*exclude end of sentence*/) {
+			if (l.length() <= this.lineLength * 2 / 3 
+					|| (l.endsWith(".") && l.length() < lastLength - 10)) {
 				newNextPara = true;
-			}
+			}			
+			
 			lastLength = l.length();
 
 			// update para
 			if (newPara || paras.size() == 0) {
 				paras.add(l);// insert para
 				types.add(type);// insert type
+				y1s.add(y1);
 			} else {
 				// update para
 				if (!lastPara.endsWith("-")) {
@@ -440,14 +689,14 @@ public class ContentExtract {
 					pageNumTypes.add("noncontent_pagenum");
 				}
 				DatabaseAccessor.insertParagraphs(this.prefix, pageNumLines,
-						source, conn, pageNumTypes, pageNum);
+						source, conn, pageNumTypes, pageNum, null);
 			}
 
 			for (ColumnBean cb : cbs) {
 				if (cb.getParas().size() > 0) {
 					DatabaseAccessor
 							.insertParagraphs(this.prefix, cb.getParas(),
-									source, conn, cb.getTypes(), pageNum);
+									source, conn, cb.getTypes(), pageNum, cb.getY1s());
 				}
 			}
 		} catch (Exception e) {
@@ -465,150 +714,48 @@ public class ContentExtract {
 		ResultSet rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
 				"", "paraID", "*", conn);
 		boolean started = false;
-		boolean ended = false;
 		while (rs_para.next()) {
 			String currentType = rs_para.getString("type");
-			if (currentType.contains("taxonname")) {
-				ended = true;
-				started = false;
-				continue;
-			}
-			if (currentType.contains("innersection")) {
-				started = true;
-				ended = false;
-				continue;
-			}
-
-			if (!rs_para.getString("type").equals("noncontent_pagenum")
-					&& started && !ended) {
-				markAsType(rs_para.getInt("paraID"), "noncontent_innersection");
-			}
-		}
-	}
-
-	/**
-	 * mark inner section
-	 * 
-	 * @param rs_para
-	 * @throws Exception
-	 */
-	public void markInnerSection(String prefix, String source) throws Exception {
-		ResultSet rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
-				"source='" + source + "'", "paraID", "*", conn);
-		boolean started = false;
-		boolean ended = false;
-		while (rs_para.next()) {
-			String currentType = rs_para.getString("type");
-			if (currentType.contains("taxonname")) {
-				ended = true;
-				started = false;
-				continue;
-			}
-			if (currentType.contains("innersection")) {
-				started = true;
-				ended = false;
-				continue;
-			}
-
-			if (!rs_para.getString("type").equals("noncontent_pagenum")
-					&& started && !ended) {
-				markAsType(rs_para.getInt("paraID"), "noncontent_innersection");
-			}
-		}
-	}
-
-	/**
-	 * Fengqiong: use this one to replace idContent() 1. mark inner section:
-	 * from innersection to next taxon name 2.
-	 */
-	public void identifyContent() {
-		File[] allFiles = sourceFile.listFiles();
-		for (int i = 0; i < allFiles.length; i++) {
-			String source = allFiles[i].getName();
-			if (source.substring(0, 1).equals(".")) {
-				continue;
-			}
-			ResultSet rs_para = null;
-			try {
-				// mark prolog
-				DatabaseAccessor.updateProlog(prefix, conn);
-
-				// mark inner section
-				markInnerSection(prefix, source);
-
-				// mark table content (texts between last pagenum and figure)
-				traceBackFigTblContent();
-
-				String condition = "source='"
-						+ source
-						+ "' and (type='unassigned' or type='content_taxonname')";
-				rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
-						condition, "paraID", "*", conn);
-				if (rs_para != null) {
-					boolean noEndPara = false;
-					while (rs_para.next()) {
-						int paraID = rs_para.getInt("paraID");
-						String para = rs_para.getString("paragraph");
-
-						if (isPureQuestionMark(para)) {
-							markAsType(paraID, "noncontent_illegal");
+			if (started) {
+				if (currentType.contains("taxonname")) {
+					String para = rs_para.getString("paragraph");
+					
+					if (para.length() > lineLength * 1.5) {
+						Pattern p = Pattern.compile(taxonNamePattern + ".*\\d\\d\\d\\d.*\\[.*\\].*");
+						Matcher m = p.matcher(para);
+						if (!m.matches()) {
+							markAsType(rs_para.getInt("paraID"), "noncontent_faketaxon");
 						} else {
-							if (isInterruptingPoint(paraID, para, noEndPara)) { // H3
-								markAdd2Last(paraID, "yes"); // set add2last
-							}
-
-							if (rs_para.getString("type").equals("unassigned")) {
-								markAsType(paraID, "content");
-							}
-
-							if (!para.endsWith(".")) {
-								noEndPara = true;
-							} else {
-								noEndPara = false;
-							}
+							//end this innersection
+							started = false;
 						}
-
-						/*
-						 * if (isFootNote(paraID, para, source)) { // H2 H6
-						 * markAsType(paraID, "noncontent_footnote"); continue;
-						 * }
-						 */
-						/*
-						 * if (isHeading(para)) { // markAsType(paraID,
-						 * "content_heading"); continue; }
-						 */
-
-						/*
-						 * if (isShortTexts(paraID, para, source)) { //
-						 * markAsType(paraID, "noncontent_shorttext"); continue;
-						 * }
-						 */
+					} else {
+						//the taxon name that will break an innersection must be a title, therefore, it can only match the bigger part
+						Pattern p = Pattern.compile(taxonNamePattern);
+						Pattern p2 = Pattern.compile(taxonNamePattern + "\\s[A-Zжид][a-z]+,\\s\\d\\d\\d\\d");
+						
+						//^\\??[A-Z]([a-z]+)\\s([A-Zжид]\\.?\\s?([A-Zжид']+))
+						Matcher m = p.matcher(para);
+						Matcher m2 = p2.matcher(para);
+						if (m.matches() || m2.matches()) {
+							//end the innersection
+							started = false;
+						} else {
+							markAsType(rs_para.getInt("paraID"), "noncontent_faketaxon");
+						}
 					}
+					continue;
+				} else if (!currentType.equals("noncontent_pagenum") && !currentType.equals("noncontent_figtbl")){
+					markAsType(rs_para.getInt("paraID"), "noncontent_innersection");
 				}
-				rs_para = null;
-				System.out.println("idContent finished "
-						+ new Date(System.currentTimeMillis()));
-
-				// fix brackets, produce add2last y-[
-				fixBrackets();
-				fixSquareBrackets();
-
-				System.out.println("fixBrackets finished "
-						+ new Date(System.currentTimeMillis()));
-
-				// fix those add2last but should be add to fig description
-				/*
-				 * fixFigtbl(); System.out.println("fixFigtbl finished " + new
-				 * Date(System.currentTimeMillis()));
-				 */
-
-			} catch (Exception e) {
-				e.printStackTrace();
+			} else if (currentType.contains("innersection")) {
+				started = true;
+				continue;
 			}
 		}
 	}
 
-	public void identifyContentWithoutSource() {
+	public void identifyContent() {
 		ResultSet rs_para = null;
 		try {
 			// mark prolog
@@ -674,7 +821,7 @@ public class ContentExtract {
 			fixBrackets();
 			System.out.println("fixBrackets finished "
 					+ new Date(System.currentTimeMillis()));
-			
+
 			fixSquareBrackets();
 
 			System.out.println("fixSquareBrackets finished "
@@ -1046,9 +1193,10 @@ public class ContentExtract {
 			// Make 2 Ia. =>21a. Make 2.1 =>21
 			if (start.matches("\\d+") || start.matches("[a-zA-Z]")
 					|| start.matches("\\d+[a-zA-Z]")) {// matches 2, a, 2a, 1920
-				return false; // bullets
-				
-				//p42: 49, 
+				if (para.matches("^\\d+,.*")) {
+					return true; // p42: 49,
+				}
+				return false; // bullets				
 			}
 			if (/* start.matches("^[a-z].*") && */start.length() > 1) {
 				return true; // else
@@ -1098,6 +1246,12 @@ public class ContentExtract {
 		if (para.matches(this.tablePattern) || para.matches(figurePattern)) {
 			return true;
 		}
+		
+		if (!figException.equals("")) {
+			if (para.startsWith(figException)) {
+				return true;
+			}
+		}
 
 		/*
 		 * Pattern pattern = Pattern.compile(this.figurePattern); Matcher m =
@@ -1125,15 +1279,70 @@ public class ContentExtract {
 	 * @return
 	 */
 	protected boolean isfigTblTxt(String para) {
-		Pattern p = Pattern
-				.compile(figtblTxtPattern);
+		Pattern p = Pattern.compile(figtblTxtPattern);
 		Matcher mh = p.matcher(para);
 		if (mh.matches()) {
 			return true;
 		}
+		if (para.length() < 25) {
+			//t.os
+			//word1 word2 / word1-word2/word1
+			if (para.matches("^[a-z\\s\\-]*") || para.matches("t\\.os") || para.matches("^(ray,)(\\s(first)\\s(order))?")) {
+				return true;
+			}
+		}
 		return false;
 	}
+	
+	protected boolean reCheckfigTblTxt(String para) {
+		Pattern p = Pattern.compile(figtblTxtPattern);
+		Matcher mh = p.matcher(para);
+		if (mh.matches()) {
+			return true;
+		}
+		if (para.length() < this.lineLength * 0.8) {
+			//t.os
+			//word1 word2 / word1-word2/word1
+			if (para.matches("^[a-z\\s\\-]*") || para.matches("t\\.os") || para.matches("^(ray,)(\\s(first)\\s(order))?")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
 
+	protected void traceBackFigTblContent(String source, String pageNum, int y1) {
+		try {
+			ResultSet rs_para = null;
+			String condition1 = "pageNum = '" + pageNum + "' and source = '"
+					+ source + "'and type = 'unassigned'";
+			rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
+					condition1, "", "", conn);
+			while (rs_para.next()) {
+				String para = rs_para.getString("paragraph");
+				if (isfigTblTxt(para)) {
+					markAsType(rs_para.getInt("paraID"),
+							"noncontent_figtbl_txt");
+				}
+			}
+			
+			String condition2 = "pageNum = '" + pageNum + "' and source = '"
+					+ source + "'and type = 'unassigned' and y1 > " + y1;
+			rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
+					condition2, "", "", conn);
+			while (rs_para.next()) {
+				String para = rs_para.getString("paragraph");
+				if (reCheckfigTblTxt(para)) {
+					markAsType(rs_para.getInt("paraID"),
+							"noncontent_figtbl_txt");
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	protected void traceBackFigTblContent(String source, String pageNum) {
 		try {
 			ResultSet rs_para = null;
@@ -1141,13 +1350,11 @@ public class ContentExtract {
 					+ source + "'and type = 'unassigned'";
 			rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
 					condition, "", "", conn);
-			int count = 0;
 			while (rs_para.next()) {
 				String para = rs_para.getString("paragraph");
 				if (isfigTblTxt(para)) {
 					markAsType(rs_para.getInt("paraID"),
 							"noncontent_figtbl_txt");
-					count++;
 				}
 			}
 		} catch (Exception e) {
@@ -1171,11 +1378,11 @@ public class ContentExtract {
 			// find the paraID for the last pagenum
 			String condition = "type like '%figtbl%'";
 			rs_para = DatabaseAccessor.getParagraphsByCondition(prefix,
-					condition, "paraID", "paraID, pageNum, source", conn);
+					condition, "paraID", "paraID, pageNum, source, y1", conn);
 			if (rs_para != null) {
 				while (rs_para.next()) {
 					this.traceBackFigTblContent(rs_para.getString("source"),
-							rs_para.getString("pageNum"));
+							rs_para.getString("pageNum"), rs_para.getInt("y1"));
 				}
 			}
 		} catch (Exception e) {
@@ -1185,6 +1392,11 @@ public class ContentExtract {
 		}
 	}
 
+	/**
+	 * old one, should be discarded
+	 * @param paraID
+	 * @param source
+	 */
 	protected void traceBackFigTblContent(int paraID, String source) {
 		try {
 			ResultSet rs_para = null;
@@ -1368,7 +1580,12 @@ public class ContentExtract {
 	 * @return
 	 */
 	private boolean isLastline(String line) {
-		return startWith(line, this.endText);
+		if (endText.equals("")) {
+			return false;
+		}
+		else {
+			return startWith(line, this.endText);
+		}
 	}
 
 	private boolean startWith(String line, String prefix) {
@@ -1408,7 +1625,7 @@ public class ContentExtract {
 	private boolean isInnerSection(String line) {
 		line = line.trim();
 		try {
-			Pattern p = Pattern.compile("^[A-Z][A-Z][A-Z]+(\\s[A-Z][A-Z]+)*"); // over
+			Pattern p = Pattern.compile("^[A-Z][A-Z][A-Z,:]+(\\s[A-Z][A-Z,:]+)*"); // over
 																				// 3
 																				// letters
 																				// per
@@ -1425,7 +1642,9 @@ public class ContentExtract {
 	}
 
 	/**
-	 * 
+	 * Order UNCERTAIN
+	 * Order and Suborder UNCERTAIN
+	 * Class, Order, and Family \n UNCERTAIN --not handled - can be handled with combined uncertain
 	 * @param line
 	 * @return
 	 */
@@ -1433,14 +1652,32 @@ public class ContentExtract {
 		line = line.trim();
 		try {
 			Pattern p1 = Pattern
-					.compile("^[A-Z]([a-z]+)\\s(UNCERTAIN|Uncertain)");
+					.compile("^([A-Z][a-z]+(\\s(and)\\s[A-Z][a-z]+)?\\s)?(UNCERTAIN|Uncertain)");
+			
 			Matcher mt1 = p1.matcher(line);
 			if (mt1.matches()) {
 				return true;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			// TODO: handle exception
+		}
+		return false;
+	}
+	
+	/**
+	 * Class, Order, and Family 
+	 * 		UNCERTAIN
+	 * @param line
+	 * @param lastline
+	 * @return
+	 */
+	private boolean isCombinedUnCertain(String line, String lastline) {
+		if (line.matches("(UNCERTAIN|Uncertain)")) {
+			Pattern p = Pattern.compile("^([A-Z][a-z]+,?\\s)+(and)\\s[A-Z][a-z]+");
+			Matcher m = p.matcher(lastline);
+			if (m.matches()) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -1468,7 +1705,7 @@ public class ContentExtract {
 			// Pattern p =
 			// Pattern.compile("^\\??[A-Z]([a-z]+)\\s([A-Zж]([A-Zж]+)).*?");
 			Pattern p = Pattern
-					.compile("^\\??[A-Z]([a-z]+)\\s([A-Zжид]\\.?\\s?([A-Zжид]+)).*?");
+					.compile(this.taxonNamePattern + ".*?");
 			Matcher mt = p.matcher(para);
 			if (mt.matches()) {
 				return true;
@@ -1476,6 +1713,22 @@ public class ContentExtract {
 		} catch (Exception e) {
 			e.printStackTrace();
 			// TODO: handle exception
+		}
+		return false;
+	}
+
+	private boolean isFootNote(String line) {
+		String l = line.replaceAll("\\s", "");
+
+		if (l.matches("^\\d[A-Z][a-z]+,?\\s.*?")) { /* 1Abc ... */
+			return true;
+		}
+
+		if (l.length() > lengthOfFootnoteKey) {
+			l = l.substring(0, lengthOfFootnoteKey);
+		}
+		if (footnotes.get(l) != null) { /* in footnotes table */
+			return true;
 		}
 		return false;
 	}
@@ -1872,12 +2125,13 @@ public class ContentExtract {
 		System.out.println("readPages completed "
 				+ new Date(System.currentTimeMillis()));
 
-		cf.identifyContentWithoutSource();
+		cf.identifyContent();
 
 		cf.getCleanParagraph();
 		// output file
 		cf.outputCleanContent();
-		System.out.println("content extract finished "
+		System.out.println("content extract finished: (" + cf.spacefixed +
+				"space fixed) "
 				+ new Date(System.currentTimeMillis()));
 	}
 }
