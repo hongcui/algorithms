@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
@@ -55,7 +56,7 @@ public class DatabaseAccessor {
 					+ "paraID bigint not null primary key auto_increment , "
 					+ "source varchar(500), paragraph text(5000), "
 					+ "type varchar(50), add2last varchar(10), "
-					+ "remark varchar(50), " + "pageNum varchar(20)," 
+					+ "remark varchar(50), " + "pageNum varchar(20),"
 					+ "y1 int" + ")");
 			stmt.execute("delete from " + prefix + "_paragraphs");
 		} catch (Exception e) {
@@ -82,8 +83,8 @@ public class DatabaseAccessor {
 			stmt = conn.createStatement();
 			stmt.execute("SET NAMES 'utf8'");
 			stmt.execute("set character_set_server='utf8';");
-			//stmt.execute("set character_set_dabatase='utf8';");
-			//stmt.execute("set character_set_system = 'utf8';");
+			// stmt.execute("set character_set_dabatase='utf8';");
+			// stmt.execute("set character_set_system = 'utf8';");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -99,9 +100,10 @@ public class DatabaseAccessor {
 			// conn = DriverManager.getConnection(url);
 			stmt = conn.createStatement();
 			stmt.execute("drop table if exists " + tableName);
-			stmt.execute("create table if not exists "
-					+ tableName
-					+ " (paraID bigint not null primary key auto_increment, orgParaID bigint, source varchar(50), paragraph text(5000), remark varchar(50))");
+			stmt.execute("create table if not exists " + tableName
+					+ " (paraID bigint not null primary key auto_increment, "
+					+ "orgParaID bigint, " + "source varchar(50), "
+					+ "paragraph text(5000), " + "remark varchar(50))");
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create table" + tableName + "::" + e);
 			e.printStackTrace();
@@ -111,6 +113,24 @@ public class DatabaseAccessor {
 		 * conn.close(); } }
 		 */
 
+	}
+
+	public static void createXMLFileRelationsTable(String tableName,
+			Connection conn) {
+		Statement stmt = null;
+		try {
+			stmt = conn.createStatement();
+			stmt.execute("drop table if exists " + tableName
+					+ "_taxon_relation");
+			String sql = "create table if not exists " + tableName
+					+ "_taxon_relation " + " (name varchar(200), "
+					+ "filename varchar(50), " + "taxon_hierarchy varchar(1000))";
+			stmt.execute(sql);
+		} catch (Exception e) {
+			LOGGER.error("Couldn't create tabke " + tableName + " :: " + e);
+			e.printStackTrace();
+			System.exit(1);
+		}
 	}
 
 	public static void inserParagraph(String prefix, String para,
@@ -134,7 +154,7 @@ public class DatabaseAccessor {
 			System.exit(1);
 		}
 	}
-	
+
 	public static void inserParagraph(String prefix, String para, Integer y1,
 			String source, String pageNum, Connection conn, String type)
 			throws Exception {
@@ -144,7 +164,8 @@ public class DatabaseAccessor {
 		String value = "'" + source + "', '" + para + "', '" + type + "', '"
 				+ pageNum + "', " + y1;
 		try {
-			stmt.execute("insert into " + prefix
+			stmt.execute("insert into "
+					+ prefix
 					+ "_paragraphs (source, paragraph, type, pageNum, y1) values ("
 					+ value + ")");
 		} catch (Exception e) {
@@ -187,7 +208,7 @@ public class DatabaseAccessor {
 			inserParagraph(prefix, para, source, pageNum, conn, type);
 		}
 	}
-	
+
 	public static void insertParagraphs(String prefix, ArrayList<String> paras,
 			String source, Connection conn, ArrayList<String> types,
 			String pageNum, ArrayList<Integer> y1s) throws Exception {
@@ -196,7 +217,7 @@ public class DatabaseAccessor {
 			// escape ' in source/para
 			String para = ((String) paras.get(i)).replaceAll("\\\\", "");
 			para = para.replaceAll("'", "\\\\'");
-			
+
 			String type = "unassigned";
 			if (types != null) {
 				type = (String) types.get(i);
@@ -204,12 +225,12 @@ public class DatabaseAccessor {
 					type = "unassigned";
 				}
 			}
-			
+
 			int y1 = (y1s != null ? y1s.get(i) : 0);
 			inserParagraph(prefix, para, y1, source, pageNum, conn, type);
 		}
 	}
-	
+
 	/*
 	 * discarded
 	 */
@@ -860,6 +881,37 @@ public class DatabaseAccessor {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
+		}
+	}
+
+	/**
+	 * insert a record indicating the xml filename to any taxon
+	 * @param prefix
+	 * @param name
+	 * @param taxon_hierarchy
+	 * @param fileCount
+	 * @param conn
+	 * @throws Exception
+	 */
+	public static void insertTaxonFileRelation(String prefix, String name,
+			String taxon_hierarchy, int fileCount, Connection conn)
+			throws Exception {
+		PreparedStatement ps = null;
+		try {
+			ps = conn.prepareStatement("insert into "
+					+ prefix
+					+ "_taxon_relation (name, filename, taxon_hierarchy) values (?, ?, ?)");
+			ps.setString(1, name);
+			ps.setString(2, fileCount + ".xml");
+			ps.setString(3, taxon_hierarchy);
+			ps.execute();
+		} catch (Exception e) {
+			System.out.println("Couldn't insert to table "
+					+ prefix + "_taxon_relation::");
+			LOGGER.error("Couldn't insert to table " + prefix
+					+ "_taxon_relation::" + e);
+			e.printStackTrace();
+			System.exit(1);
 		}
 	}
 
