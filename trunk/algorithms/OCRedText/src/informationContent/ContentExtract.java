@@ -5,11 +5,6 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import org.jdom.*;
 import org.jdom.input.SAXBuilder;
-
-import com.sun.xml.internal.ws.api.pipe.NextAction;
-
-import sun.misc.GC.LatencyRequest;
-
 import beans.ColumnBean;
 import beans.ParagraphBean;
 
@@ -94,6 +89,7 @@ public class ContentExtract {
 	 * 
 	 */
 	public ContentExtract() {
+		this.taxonNamePattern = Patterns.taxonNamePattern;
 		String sourceFilePath = "";
 		this.outputPath = "E:\\work_data\\clean\\";
 		this.figtblTxtPattern = "^\\d+(\\.\\d+)?\\s?\\??mm?" +
@@ -112,12 +108,12 @@ public class ContentExtract {
 //		this.startText = "SYSTEMATIC DESCRIPTIONS";
 //		this.endText = "REFERENCES";
 //		this.startPage = "331";
-//		
-//		// volume b
-//		sourceFilePath = "E:\\work_data\\xml\\xml_b";
-//		this.startText = "SYSTEMATIC DESCRIPTIONS";
-//		this.startPage = "108";
-//		this.endText = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
+		
+		// volume b
+		sourceFilePath = "E:\\work_data\\xml\\xml_b";
+		this.startText = "SYSTEMATIC DESCRIPTIONS";
+		this.startPage = "108";
+		this.endText = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
 //				
 //		// volume h --nothing in this volume
 //		sourceFilePath = "E:\\work_data\\xml\\xml_h";
@@ -159,11 +155,11 @@ public class ContentExtract {
 //		this.startPage = "41";
 //		this.endText = "NOMENCLATORIAL NOTE";
 		
-		//volume h_5 - problem of wrong text
-		sourceFilePath = "E:\\work_data\\xml\\h_5";
-		this.startText = "SPIRIFERIDA";
-		this.startPage = "47";
-		this.endText = "NOMENCLATORIAL NOTE";
+//		//volume h_5 - problem of wrong text
+//		sourceFilePath = "E:\\work_data\\xml\\h_5";
+//		this.startText = "SPIRIFERIDA";
+//		this.startPage = "47";
+//		this.endText = "NOMENCLATORIAL NOTE";
 //		
 //		//volume h_6 
 //		//may not work for space fixing since copied text are not by line
