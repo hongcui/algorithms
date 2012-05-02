@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import db.DatabaseAccessor;
-import fna.charactermarkup.ChunkedSentence;
+//import fna.charactermarkup.ChunkedSentence;
 /**
  * @author hongcui
  * this class removes the assumption from ContentFetcher that a paragraph is terminated by a blank line

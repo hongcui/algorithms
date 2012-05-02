@@ -1,0 +1,12 @@
+File contentExtract.java is a runnable class. It is designed to extract taxonomic descriptions from given pdf files.
+This class has been tested in 
+
+
+next what to do:
+convert clean paragraphs into xml files
+refer to fixerB.java
+
+3 outputs:
+1. one xml file for each name
+2. filename2taxon table
+3. extract descriptions. 1 xml file -> 1 txt file. file name must be identical
