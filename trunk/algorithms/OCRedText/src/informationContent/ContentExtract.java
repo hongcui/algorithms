@@ -63,7 +63,7 @@ public class ContentExtract {
 	protected String tablePattern = "(TABLE|Table)\\s+\\d+\\s*\\..*?";
 	protected String figtblTxtPattern;
 	protected String innerSectionPattern = "^([A-Z]+\\s?)+[A-Z]+";
-	protected String taxonNamePattern = "^\\??[A-Z]([a-z]+)\\s([A-Zжид]\\.?\\s?([A-Zжид']+))";
+	protected String taxonNamePattern = "";
 
 	protected String startText = "SYSTEMATIC DESCRIPTIONS";// define the first
 															// line
@@ -96,6 +96,7 @@ public class ContentExtract {
 				"|(\\d\\d?[a-z]*\\d?)(\\s?\\d\\d?[a-z])*\\'*" +
 				"|[a-z0-9]*" +
 				"|[a-z]+" +
+				"|[a-z][0-9](\\s[a-z][0-9])+" +
 				"|[A-Z]+\\'*" +
 				"|([A-Z][a-z]*(\\s[A-Z][a-z]*)*)" +
 				"|([A-Z][a-z]*\\s)?\\([A-Z][a-z]*\\)" + 
@@ -615,15 +616,19 @@ public class ContentExtract {
 				//v_e_3 page49
 				newPara = true; 
 			}
-
+			
+			//int diff = (y1 - last_y1 > 0) ? (y1 - last_y1) : (y1 - last_y1) * (-1);
+			int diff = y1 - last_y1;
 			// use y-coordinate to separate paragraph
-			if (y1 - last_y1 > 65) {
+			if (diff > 65) {
 				newPara = true;
 			}
 			
 //			if (lastPara.endsWith(".") && y1 > last_y1 + 70) {
 //				newPara = true;
 //			}
+			
+		
 
 			// use period and length of line to separate paragraph
 			if (l.length() <= this.lineLength * 2 / 3 

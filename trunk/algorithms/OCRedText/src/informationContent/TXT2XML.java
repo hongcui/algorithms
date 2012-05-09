@@ -30,12 +30,8 @@ public class TXT2XML {
 	 * @param args
 	 */
 
-	private String folderpath = "E:\\work_data\\TREATISE_ON_INVERTEBRATE_PALEONTOLOGY";// the
-																				// folder
-																				// contains
-																				// all
-																				// txt
-																				// files
+	//private String folderpath = "E:\\work_data\\TREATISE_ON_INVERTEBRATE_PALEONTOLOGY";
+	private String folderpath = "E:\\work_data\\TREATISE\\Treatises_txt_files";
 	private String processing = "0"; // file index or "all"
 	private File[] sourceFiles = null;
 	private String outputPath = "E:\\work_data\\TREATISE\\";
@@ -53,6 +49,7 @@ public class TXT2XML {
 	public static void main(String[] args) {
 		TXT2XML tx = new TXT2XML();
 		tx.ExtractTaxon();
+		System.out.println("Convert finished");
 	}
 
 	/**
@@ -100,9 +97,9 @@ public class TXT2XML {
 			try {
 				createOutputFolders(volume);
 				FileInputStream fstream = new FileInputStream(eachTxtFile);
-				DataInputStream in = new DataInputStream(fstream);
-				BufferedReader br = new BufferedReader(
-						new InputStreamReader(in));
+				InputStreamReader is = new InputStreamReader(fstream,"UTF-8"); 
+				//DataInputStream in = new DataInputStream(fstream);
+				BufferedReader br = new BufferedReader(is);
 
 				// create table in database
 				DatabaseAccessor.createXMLFileRelationsTable(this.volume, conn);
@@ -119,7 +116,9 @@ public class TXT2XML {
 							.compile(Patterns.taxonNamePattern);
 					Matcher m = pattern.matcher(line);
 					int firstBracket = line.indexOf("[");
-					if (firstBracket > 0 && firstBracket < 200 && m.matches()) {
+					if (firstBracket > 0 && firstBracket < 300 && m.matches()) {
+						//is a taxon 
+						
 						this.taxonCount++;
 						String name = "", name_info = "", rest = "", description = "", other = "", rank = "", discussion = "";
 						String tx_hierarchy = "";
@@ -131,7 +130,7 @@ public class TXT2XML {
 						rankNo = ranks.get(rank);
 						if (rankNo == null) {
 							Pattern subGeneraPtn = Pattern
-									.compile(Patterns.bellowGeneraPattern);
+									.compile(Patterns.underGeneraPattern);
 							Matcher m_subGenera = subGeneraPtn.matcher(line);
 							if (m_subGenera.matches()) {
 								if (line.matches(Patterns.subGenusPattern)) {
@@ -157,10 +156,11 @@ public class TXT2XML {
 								name = m_s.group(1).trim();
 								rest = m_s.group(2).trim();
 								if (rest.indexOf("]") > 0) {
+									int des_index = getDescriptionIndex(line);
 									name_info = line.substring(0,
-											line.indexOf("]") + 1).trim();
+											des_index + 1).trim();
 									rest = line.substring(
-											line.lastIndexOf("]") + 1,
+											des_index + 1,
 											line.length()).trim();
 								} else {
 									name_info = name;
@@ -168,15 +168,12 @@ public class TXT2XML {
 							}
 						} else {
 							String beforeBracket = line.substring(0, firstBracket);
-							if (beforeBracket.indexOf(",") < 0) {
-								name = beforeBracket;
-							} else {
-								name = line.substring(0, line.indexOf(","));	
-							}
+							name = getName(beforeBracket);	
 							
+							int des_index = getDescriptionIndex(line);
 							name_info = line.substring(0,
-									line.lastIndexOf("]") + 1).trim();
-							rest = line.substring(line.lastIndexOf("]") + 1,
+									des_index + 1).trim();
+							rest = line.substring(des_index + 1,
 									line.length()).trim();
 						}
 
@@ -241,7 +238,7 @@ public class TXT2XML {
 								description, other, reachedEnd, tx_hierarchy);
 						taxon.setIndex(this.taxonCount);
 						taxonList.add(taxon);
-					} else {
+					} else { //not a taxon paragraph
 						// add this line to previous
 						if (taxonList.size() > 0) {
 							updateTaxon(taxonList.get(taxonList.size() - 1),
@@ -260,9 +257,65 @@ public class TXT2XML {
 		}
 	}
 
+	/**
+	 * Pattern:
+	 * part 1: Abc | A. (Abc)
+	 * part 2: (A+all kinds of characters)
+	 * part 3: NAME'SGEW &|and NAME2'SE &|and NAME3
+	 * part 4: in PUBLICATION
+	 * part 5: year: 1885 1885b
+	 * part 6: page number: p. [0-9]+
+	 * 
+	 * @param text: the text before [
+	 * @return
+	 */
+	protected String getName(String text) {
+		Pattern p = Pattern.compile(Patterns.nameSplitPattern);
+		Matcher m = p.matcher(text);
+		String name = "";
+		if (m.matches()) {
+			for (int i = 1; i <= 3; i++) {
+				if (m.group(i) != null) {
+					name += m.group(i);
+				}
+			}
+		} else {
+			int commaIndex = text.indexOf(",");
+			if (commaIndex > 0) {
+				int leftBracketIndex = text.lastIndexOf("(");
+				int rightBracketIndex = text.lastIndexOf(")");
+				name = text.substring(0, commaIndex).trim();
+				if (commaIndex > leftBracketIndex && commaIndex < rightBracketIndex) {
+					String rest = text.substring(rightBracketIndex + 1, text.length()).trim();
+					name = text.substring(0, rightBracketIndex + 1) + " " + rest.substring(0, rest.indexOf(","));
+				}
+			} else {
+				name = text;
+			}
+		}
+		return name;
+	}
+	
+	protected int getDescriptionIndex(String line) {
+		int index = 0;
+		String rest = line ;
+		while (true) {
+			int i = rest.indexOf("]");
+			index = index + 1 + i;
+			if (index < 0) {
+				break;
+			}
+			rest = rest.substring(i + 1, rest.length()).trim();
+			if (!rest.startsWith("[")) {
+				break;
+			} 
+		}
+		return index;
+	}
+	
 	protected void updateTaxon(Taxon taxon, String line) {
 		// if reached end, add to discussion
-		if (taxon.isReachedEnd()) {
+/*		if (taxon.isReachedEnd()) {
 			taxon.setDiscussion(taxon.getDiscussion() + " " + line);
 		} else {
 			// else, append to description
@@ -271,6 +324,8 @@ public class TXT2XML {
 
 		// check reached_end
 		taxon.setReachedEnd(descriptionEnded(taxon.getRankNumber(), line));
+*/		
+		taxon.setDiscussion(taxon.getDiscussion() + " " + line);
 	}
 
 	protected boolean descriptionEnded(int rankNo, String line) {
@@ -340,6 +395,10 @@ public class TXT2XML {
 			Element name = new Element("name");
 			name.setText(taxon.getName());
 			nomen.addContent(name);
+			
+			Element rank = new Element("rank");
+			nomen.addContent(rank);
+			rank.addContent(taxon.getRank());
 
 			Element th = new Element("taxon_hierarchy");
 			th.setText(taxon.getTx_hierarchy());
@@ -349,9 +408,6 @@ public class TXT2XML {
 			nomen.addContent(name_info);
 			name_info.setText(taxon.getName_info());
 
-			Element rank = new Element("rank");
-			nomen.addContent(rank);
-			rank.addContent(taxon.getRank());
 
 			// description
 			Element description = new Element("description");
@@ -362,6 +418,11 @@ public class TXT2XML {
 			Element other = new Element("other_info");
 			root.addContent(other);
 			other.setText(taxon.getOther());
+			
+			//discussion
+			Element discusson = new Element("discussion");
+			root.addContent(discusson);
+			discusson.setText(taxon.getDiscussion());
 
 			// output xml file
 			File f = new File(outputPath + xmlFolerName + this.volume + "\\", filecount + ".xml");
