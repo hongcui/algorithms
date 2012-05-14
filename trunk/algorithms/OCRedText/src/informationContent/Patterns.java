@@ -21,6 +21,15 @@ public class Patterns {
 			"(,?\\s[0-9]{4}b?)" + //5th part: year
 			"(,\\sp\\.\\s?[0-9]+)?" + //6th part: page number, optional
 			"(.*?)$";
+	public static String singleAge = "(\\??(Upper|upper|Lower|lower|Middle|middle|up-per)\\s)?" +
+			"\\??[A-Z][a-z-]+1?" +
+			"(\\s\\([\\s\\?A-Za-z,-]+\\))?";
+	public static String multipleAgeWithComma = singleAge + "(,\\s" + singleAge + ")?";
+	public static String ageOrAgeRange = multipleAgeWithComma +
+			"(-" + multipleAgeWithComma+ ")?";
+	public static String agePattern = "^(.*?(\\.|\\])\\s)(" + ageOrAgeRange +
+			"(:\\s.*?)?\\." + //: + location part
+			")$";
 }
 
 

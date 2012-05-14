@@ -24,6 +24,8 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.output.XMLOutputter;
 
+import com.sun.xml.internal.bind.v2.runtime.unmarshaller.XsiNilLoader.Array;
+
 public class TXT2XML {
 
 	/**
@@ -122,6 +124,7 @@ public class TXT2XML {
 						this.taxonCount++;
 						String name = "", name_info = "", rest = "", description = "", other = "", rank = "", discussion = "";
 						String tx_hierarchy = "";
+						String ageAndRest = "";
 						Integer rankNo = 0;
 						boolean reachedEnd = true;
 
@@ -208,6 +211,11 @@ public class TXT2XML {
 								description = "";
 							}
 						}
+						
+						//separate the age part from description
+						ArrayList<String> descripAndAge = getAge(description);
+						description = descripAndAge.get(0);
+						ageAndRest = descripAndAge.get(1);
 
 						while (taxonList.size() > 0) {
 							int lastRankNo = taxonList
@@ -237,6 +245,7 @@ public class TXT2XML {
 						Taxon taxon = new Taxon(name, name_info, rank, rankNo,
 								description, other, reachedEnd, tx_hierarchy);
 						taxon.setIndex(this.taxonCount);
+						taxon.setAgeAndRest(ageAndRest);
 						taxonList.add(taxon);
 					} else { //not a taxon paragraph
 						// add this line to previous
@@ -294,6 +303,24 @@ public class TXT2XML {
 			}
 		}
 		return name;
+	}
+	
+	protected ArrayList<String> getAge(String description) {
+		String agepart = "";
+		ArrayList<String> strings = new ArrayList<String>();
+		Pattern p = Pattern.compile(Patterns.agePattern);
+		Matcher m = p.matcher(description.trim());
+		if (m.matches()) {
+			if (m.group(1) != null) {
+				description = m.group(1);
+			}
+			if (m.group(3) != null) {
+				agepart = m.group(3);
+			}
+		}
+		strings.add(description);
+		strings.add(agepart);
+		return strings;
 	}
 	
 	protected int getDescriptionIndex(String line) {
@@ -413,6 +440,11 @@ public class TXT2XML {
 			Element description = new Element("description");
 			root.addContent(description);
 			description.setText(taxon.getDescription());
+			
+			//ageinfo
+			Element ageinfo = new Element("age_info");
+			root.addContent(ageinfo);
+			ageinfo.setText(taxon.getAgeAndRest());
 
 			// other_info
 			Element other = new Element("other_info");

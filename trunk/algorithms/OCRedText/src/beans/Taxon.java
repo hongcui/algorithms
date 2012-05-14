@@ -12,6 +12,7 @@ public class Taxon {
 	private boolean reachedEnd = true;
 	private String tx_hierarchy = "";
 	private int index;
+	private String ageAndRest = "";
 	
 	
 	public Taxon(String name, String rank, int rankNo) {
@@ -104,6 +105,14 @@ public class Taxon {
 
 	public void setIndex(int index) {
 		this.index = index;
+	}
+
+	public String getAgeAndRest() {
+		return ageAndRest;
+	}
+
+	public void setAgeAndRest(String ageAndRest) {
+		this.ageAndRest = ageAndRest;
 	}
 
 }
