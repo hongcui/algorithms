@@ -33,12 +33,21 @@ public class TXT2XML {
 	 */
 
 	//private String folderpath = "E:\\work_data\\TREATISE_ON_INVERTEBRATE_PALEONTOLOGY";
-	private String folderpath = "E:\\work_data\\TREATISE\\Treatises_txt_files";
+	//private String folderpath = "E:\\work_data\\TREATISE\\Treatises_txt_files";//for windows
+	//private String outputPath = "E:\\work_data\\TREATISE\\";//for windows
+	//private String xmlFolerName = "Taxons\\";//for windows
+	//private String txtFolderName = "Descriptions\\";//for windows
+	//private String directorySeparator = "\\";//for windows
+	
+	private String folderpath = "/Users/ra/work_data/TREATISE/Treatises_txt_files";//for mac
+	private String outputPath = "/Users/ra/work_data/TREATISE/";//for mac
+	private String xmlFolerName = "Taxons/";//for mac
+	private String txtFolderName = "Descriptions/";//for mac
+	private String directorySeparator = "/";//mac
+	
 	private String processing = "0"; // file index or "all"
 	private File[] sourceFiles = null;
-	private String outputPath = "E:\\work_data\\TREATISE\\";
-	private String xmlFolerName = "Taxons\\";
-	private String txtFolderName = "Descriptions\\";
+	
 	private Hashtable<String, Integer> ranks = new Hashtable<String, Integer>();
 	java.sql.Connection conn = null;
 	protected static String url = ApplicationUtilities
@@ -61,7 +70,7 @@ public class TXT2XML {
 		// get txt files
 		File sourceFolder = new File(folderpath);
 		this.source = sourceFolder.getName();
-		this.sourceFiles = sourceFolder.listFiles();
+		this.sourceFiles = sourceFolder.listFiles(); 
 
 		// construct ranks
 		ranks.put("Phylum", 1);
@@ -92,6 +101,10 @@ public class TXT2XML {
 	 */
 	protected void ExtractTaxon() {
 		for (File eachTxtFile : sourceFiles) {
+			if (eachTxtFile.getName().startsWith(".")) {
+				continue;
+			}
+			
 			this.fileCount = 0;
 			this.taxonCount = 0;
 			this.volume = eachTxtFile.getName().substring(0,
@@ -389,7 +402,7 @@ public class TXT2XML {
 	private void outputTxtFile(String description, int fileCount) {
 		try {
 			FileOutputStream fos = new FileOutputStream(outputPath
-					+ txtFolderName + volume + "\\" + fileCount + ".txt");
+					+ txtFolderName + volume + directorySeparator + fileCount + ".txt");
 			OutputStreamWriter osw = new OutputStreamWriter(fos, "UTF-8");
 			osw.write(description);
 			osw.flush();
@@ -457,7 +470,7 @@ public class TXT2XML {
 			discusson.setText(taxon.getDiscussion());
 
 			// output xml file
-			File f = new File(outputPath + xmlFolerName + this.volume + "\\", filecount + ".xml");
+			File f = new File(outputPath + xmlFolerName + this.volume + directorySeparator, filecount + ".xml");
 			XMLOutputter serializer = new XMLOutputter();
 			serializer.output(doc,
 					new DataOutputStream(new FileOutputStream(f)));
