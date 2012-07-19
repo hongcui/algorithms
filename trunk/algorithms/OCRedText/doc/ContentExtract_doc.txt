@@ -10,3 +10,17 @@ refer to fixerB.java
 1. one xml file for each name
 2. filename2taxon table
 3. extract descriptions. 1 xml file -> 1 txt file. file name must be identical
+
+To convert pdf to xml: 
+1. download tools or use the version in lib
+https://code.google.com/p/pdf2djvu/
+http://djvu.sourceforge.net/
+
+2. The command sequence would be:
+
+$pdf2djvu --lines -o <output djvu file>  <input pdf file>
+note: no space in file name if in windows
+[the --lines switch tells pdf2djvu to wrap each line in a <LINE>
+element (rather than every word, the default)]
+
+$djvutoxml <input djvu file> <output xml file>
