@@ -1,7 +1,6 @@
 package informationContent;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,15 +15,10 @@ import java.util.regex.Pattern;
 
 import db.DatabaseAccessor;
 import beans.Taxon;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Connection;
 
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.output.XMLOutputter;
-
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.XsiNilLoader.Array;
 
 public class TXT2XML {
 
@@ -32,20 +26,19 @@ public class TXT2XML {
 	 * @param args
 	 */
 
-	//private String folderpath = "E:\\work_data\\TREATISE_ON_INVERTEBRATE_PALEONTOLOGY";
-	//private String folderpath = "E:\\work_data\\TREATISE\\Treatises_txt_files";//for windows
-	//private String outputPath = "E:\\work_data\\TREATISE\\";//for windows
-	//private String xmlFolerName = "Taxons\\";//for windows
-	//private String txtFolderName = "Descriptions\\";//for windows
-	//private String directorySeparator = "\\";//for windows
+//	private String folderpath = "E:\\work_data\\TREATISE_ON_INVERTEBRATE_PALEONTOLOGY";
+	private String folderpath = "E:\\work_data\\TREATISE\\Treatises_txt_files";//for windows
+	private String outputPath = "E:\\work_data\\TREATISE\\";//for windows
+	private String xmlFolerName = "Taxons\\";//for windows
+	private String txtFolderName = "Descriptions\\";//for windows
+	private String directorySeparator = "\\";//for windows
 	
-	private String folderpath = "/Users/ra/work_data/TREATISE/Treatises_txt_files";//for mac
+/*	private String folderpath = "/Users/ra/work_data/TREATISE/Treatises_txt_files";//for mac
 	private String outputPath = "/Users/ra/work_data/TREATISE/";//for mac
 	private String xmlFolerName = "Taxons/";//for mac
 	private String txtFolderName = "Descriptions/";//for mac
 	private String directorySeparator = "/";//mac
-	
-	private String processing = "0"; // file index or "all"
+*/	
 	private File[] sourceFiles = null;
 	
 	private Hashtable<String, Integer> ranks = new Hashtable<String, Integer>();
@@ -127,19 +120,20 @@ public class TXT2XML {
 						continue;
 					}
 
+					line = line.replaceAll("–", "-");
 					Pattern pattern = Pattern
 							.compile(Patterns.taxonNamePattern);
 					Matcher m = pattern.matcher(line);
 					int firstBracket = line.indexOf("[");
-					if (firstBracket > 0 && firstBracket < 300 && m.matches()) {
+					if (m.matches() || isUncertain(line)) {
 						//is a taxon 
 						
 						this.taxonCount++;
-						String name = "", name_info = "", rest = "", description = "", other = "", rank = "", discussion = "";
+						String name = "", name_info = "", rest = "", description = "", other = "", rank = "";
 						String tx_hierarchy = "";
 						String ageAndRest = "";
 						Integer rankNo = 0;
-						boolean reachedEnd = true;
+						boolean reachedEnd = false;
 
 						// get rank first
 						rank = line.substring(0, line.indexOf(" "));
@@ -183,6 +177,26 @@ public class TXT2XML {
 								}
 							}
 						} else {
+							//in part O, subgenera may not have [name_info]
+							if (firstBracket < 0 || firstBracket > 300) {
+								if (isUncertain(line)) {
+									//add this uncertain taxon
+									name = line.trim();
+									reachedEnd = true;
+									Taxon taxon = new Taxon(name, name_info, rank, rankNo,
+											description, other, reachedEnd, tx_hierarchy);
+									taxon.setIndex(this.taxonCount);
+									addTaxonToList(taxonList, taxon);
+								} else {
+									// add this line to previous
+									if (taxonList.size() > 0) {
+										updateTaxon(taxonList.get(taxonList.size() - 1),
+												line);
+									}
+								}
+								continue;
+							}
+							
 							String beforeBracket = line.substring(0, firstBracket);
 							name = getName(beforeBracket);	
 							
@@ -206,14 +220,6 @@ public class TXT2XML {
 								description = rest;
 								other = "";
 							}
-						} else {
-							reachedEnd = false;
-						}
-
-						// get reached_end: if have rank, check -Xxxxx
-						// (Geological time)
-						if (reachedEnd) {
-							reachedEnd = descriptionEnded(rankNo, line);
 						}
 
 						if (description.startsWith(".")) {
@@ -229,37 +235,13 @@ public class TXT2XML {
 						ArrayList<String> descripAndAge = getAge(description);
 						description = descripAndAge.get(0);
 						ageAndRest = descripAndAge.get(1);
-
-						while (taxonList.size() > 0) {
-							int lastRankNo = taxonList
-									.get(taxonList.size() - 1).getRankNumber();
-							if (lastRankNo >= rankNo) {
-								outputTaxon(taxonList
-										.get(taxonList.size() - 1));
-								taxonList.remove(taxonList.get(taxonList
-										.size() - 1));
-							} else {
-								break;
-							}
-						}
-
-						// get taxon_hierarchy
-						if (taxonList.size() > 0) {
-							Taxon last_taxon = taxonList
-									.get(taxonList.size() - 1);
-							if (last_taxon.getTx_hierarchy().equals("")) {
-								tx_hierarchy = last_taxon.getName();
-							} else {
-								tx_hierarchy = last_taxon.getTx_hierarchy()
-										+ "; " + last_taxon.getName();
-							}
-						}
+						reachedEnd = descripAndAge.get(2).equals("y") ? true : false;
 
 						Taxon taxon = new Taxon(name, name_info, rank, rankNo,
 								description, other, reachedEnd, tx_hierarchy);
 						taxon.setIndex(this.taxonCount);
 						taxon.setAgeAndRest(ageAndRest);
-						taxonList.add(taxon);
+						addTaxonToList(taxonList, taxon);
 					} else { //not a taxon paragraph
 						// add this line to previous
 						if (taxonList.size() > 0) {
@@ -277,6 +259,42 @@ public class TXT2XML {
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	/**
+	 * output previous sibling taxons and add taxon to the list
+	 * @param taxonList
+	 * @param taxon
+	 * @throws Exception
+	 */
+	protected void addTaxonToList(ArrayList<Taxon> taxonList, Taxon taxon) throws Exception {
+		int rankNo = taxon.getRankNumber();
+		while (taxonList.size() > 0) {
+			int lastRankNo = taxonList
+					.get(taxonList.size() - 1).getRankNumber();
+			if (lastRankNo >= rankNo) {
+				outputTaxon(taxonList
+						.get(taxonList.size() - 1));
+				taxonList.remove(taxonList.get(taxonList
+						.size() - 1));
+			} else {
+				break;
+			}
+		}
+
+		// get taxon_hierarchy
+		if (taxonList.size() > 0) {
+			Taxon last_taxon = taxonList
+					.get(taxonList.size() - 1);
+			if (last_taxon.getTx_hierarchy().equals("")) {
+				taxon.setTx_hierarchy(last_taxon.getName());
+			} else {
+				taxon.setTx_hierarchy(last_taxon.getTx_hierarchy()
+						+ "; " + last_taxon.getName());
+			}
+		}
+
+		taxonList.add(taxon);
 	}
 
 	/**
@@ -318,21 +336,47 @@ public class TXT2XML {
 		return name;
 	}
 	
+	/**
+	 * 
+	 * @param line
+	 * @return
+	 */
+	protected boolean isUncertain(String line) {
+		Pattern p = Pattern.compile(Patterns.uncertainPattern);
+		Matcher m = p.matcher(line);
+		if (m.matches()) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
 	protected ArrayList<String> getAge(String description) {
 		String agepart = "";
+		String hasAge = "n";
 		ArrayList<String> strings = new ArrayList<String>();
-		Pattern p = Pattern.compile(Patterns.agePattern);
+		Pattern p = Pattern.compile(Patterns.ageAndDescription);
 		Matcher m = p.matcher(description.trim());
 		if (m.matches()) {
+			hasAge = "y";
 			if (m.group(1) != null) {
 				description = m.group(1);
 			}
 			if (m.group(3) != null) {
 				agepart = m.group(3);
 			}
+		} else {
+			p = Pattern.compile(Patterns.ageWithoutDescription);
+			m = p.matcher(description.trim());
+			if (m.matches()) {				
+				agepart = description.trim();
+				description = "";
+				hasAge = "y";
+			}
 		}
 		strings.add(description);
 		strings.add(agepart);
+		strings.add(hasAge);
 		return strings;
 	}
 	
@@ -355,17 +399,15 @@ public class TXT2XML {
 	
 	protected void updateTaxon(Taxon taxon, String line) {
 		// if reached end, add to discussion
-/*		if (taxon.isReachedEnd()) {
+		if (taxon.isReachedEnd()) {
 			taxon.setDiscussion(taxon.getDiscussion() + " " + line);
 		} else {
 			// else, append to description
-			taxon.setDescription(taxon.getDescription() + " " + line);
+			ArrayList<String> al = getAge(line);
+			taxon.setDescription(taxon.getDescription() + " " + al.get(0));
+			taxon.setAgeAndRest(al.get(1));
+			taxon.setReachedEnd(al.get(2).equals("y") ? true : false);
 		}
-
-		// check reached_end
-		taxon.setReachedEnd(descriptionEnded(taxon.getRankNumber(), line));
-*/		
-		taxon.setDiscussion(taxon.getDiscussion() + " " + line);
 	}
 
 	protected boolean descriptionEnded(int rankNo, String line) {
