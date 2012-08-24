@@ -131,7 +131,7 @@ public class TXT2XML {
 						this.taxonCount++;
 						String name = "", name_info = "", rest = "", description = "", other = "", rank = "";
 						String tx_hierarchy = "";
-						String ageAndRest = "";
+						String ageAndRest = "", discussion = "";
 						Integer rankNo = 0;
 						boolean reachedEnd = false;
 
@@ -236,9 +236,18 @@ public class TXT2XML {
 						description = descripAndAge.get(0);
 						ageAndRest = descripAndAge.get(1);
 						reachedEnd = descripAndAge.get(2).equals("y") ? true : false;
-
+						
+						//description may contain [] (volume E_3_1), need to get rid of the last []
+						Pattern p_bracket = Pattern.compile("(.*?)((\\[[^\\[\\]]*?\\]\\s*)+)");
+						Matcher m_bracket = p_bracket.matcher(description);
+						if (m_bracket.matches()) {
+							description = m_bracket.group(1);
+							discussion = m_bracket.group(2);
+						}
+						
 						Taxon taxon = new Taxon(name, name_info, rank, rankNo,
 								description, other, reachedEnd, tx_hierarchy);
+						taxon.setDiscussion(discussion);
 						taxon.setIndex(this.taxonCount);
 						taxon.setAgeAndRest(ageAndRest);
 						addTaxonToList(taxonList, taxon);
@@ -383,17 +392,31 @@ public class TXT2XML {
 	protected int getDescriptionIndex(String line) {
 		int index = 0;
 		String rest = line ;
+		String rest_trim = "";
+		String contentOfBracket = "";
 		while (true) {
 			int i = rest.indexOf("]");
 			index = index + 1 + i;
 			if (index < 0) {
 				break;
 			}
-			rest = rest.substring(i + 1, rest.length()).trim();
-			if (!rest.startsWith("[")) {
+			contentOfBracket = rest.substring(0, i + 1);
+			rest = rest.substring(i + 1, rest.length());//should not use trim here, since the index may be incorrect		
+			
+			//for case like, must exclude the [1819] and find the next []
+			/**
+			 * Aka DE LAUBENFELS, 1936, p. 155, nom. nov. pro Acca JOHNSON, 1899, p. 461, non HUEBNER, [1819], p. 49, Lepidoptera [*Acca insidiosa JOHNSON, 1899, p. 461; OD] [=Siphonodictyon BERGQUIST, 1965, p. 158 (type, S. mucosa, OD)].
+			 */
+			if (contentOfBracket.matches(".*?\\[[0-9]+\\]") && rest.indexOf("[") > 0) {
+				continue;
+			}
+			rest_trim = rest.trim();
+			if (!rest_trim.startsWith("[")) {
 				break;
-			} 
+			}
+			
 		}
+		
 		return index;
 	}
 	
