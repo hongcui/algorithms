@@ -63,7 +63,7 @@ public class ContentExtract {
 	protected String tablePattern = "(TABLE|Table)\\s+\\d+\\s*\\..*?";
 	protected String figtblTxtPattern;
 	protected String innerSectionPattern = "^([A-Z]+\\s?)+[A-Z]+";
-	protected String taxonNamePattern = "";
+	protected String taxonNamePattern = Patterns.taxonNamePattern;
 
 	protected String startText = "SYSTEMATIC DESCRIPTIONS";// define the first
 															// line
@@ -110,11 +110,11 @@ public class ContentExtract {
 //		this.endText = "REFERENCES";
 //		this.startPage = "331";
 		
-		// volume b
-		sourceFilePath = "E:\\work_data\\xml\\xml_b";
-		this.startText = "SYSTEMATIC DESCRIPTIONS";
-		this.startPage = "108";
-		this.endText = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
+//		// volume b
+//		sourceFilePath = "E:\\work_data\\xml\\xml_b";
+//		this.startText = "SYSTEMATIC DESCRIPTIONS";
+//		this.startPage = "108";
+//		this.endText = "NOMINA DUBIA AND GENERIC NAMES WRONGLY";
 //				
 //		// volume h --nothing in this volume
 //		sourceFilePath = "E:\\work_data\\xml\\xml_h";
@@ -130,6 +130,7 @@ public class ContentExtract {
 //
 //		// volume e_3 
 //		sourceFilePath = "E:\\work_data\\xml\\xml_e_3";
+//		sourceFilePath = "E:\\work_data\\xml\\test";
 //		this.startText = "PALEOZOIC DEMOSPONGES";
 //		this.startPage = "9";
 //		this.endText = "RANGES OF TAXA";
@@ -143,18 +144,18 @@ public class ContentExtract {
 //		this.startText = "BRACHIOPODA";
 //		this.startPage = "60";
 //		this.endText = ""; //no end, till the last word
-		
+//		
 //		//volume h_3 - problem of missing columns; long figure text
 //		sourceFilePath = "E:\\work_data\\xml\\h_3";
 //		this.startText = "PRODUCTIDINA";
 //		this.startPage = "4";
 //		this.endText = "REFERENCES";
 		
-//		//volume h_4 - problem of missing text; other pattern of figure text
-//		sourceFilePath = "E:\\work_data\\xml\\h_4";
-//		this.startText = "PENTAMERIDA";
-//		this.startPage = "41";
-//		this.endText = "NOMENCLATORIAL NOTE";
+		//volume h_4 - problem of missing text; other pattern of figure text
+		sourceFilePath = "E:\\work_data\\xml\\h_4";
+		this.startText = "PENTAMERIDA";
+		this.startPage = "41";
+		this.endText = "NOMENCLATORIAL NOTE";
 		
 //		//volume h_5 - problem of wrong text
 //		sourceFilePath = "E:\\work_data\\xml\\h_5";
@@ -781,7 +782,7 @@ public class ContentExtract {
 					int paraID = rs_para.getInt("paraID");
 					String para = rs_para.getString("paragraph");
 
-					if (isPureQuestionMark(para)) {
+					if (isNonWordLine(para)) {
 						markAsType(paraID, "noncontent_illegal");
 					} else {
 						if (isInterruptingPoint(paraID, para, noEndPara)) { // H3
@@ -979,7 +980,19 @@ public class ContentExtract {
 			types = null;
 		}
 	}
-
+	
+	//in table _paragraph, set note and print out later
+	private void setNote(int paraID, String note) {
+		//write note to note of record
+		String set = "note=concat(note, '" + note + "; ')";
+		String condition = "paraID=" + paraID;
+		try {
+			DatabaseAccessor.updateParagraph(prefix, set, condition, conn);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
 	private void fixBrackets() {
 		ArrayList<String> paraIDs = new ArrayList<String>();
 		ArrayList<String> paras = new ArrayList<String>();
@@ -1058,7 +1071,7 @@ public class ContentExtract {
 				// boolean isCategory = rs.getBoolean("isCategory");
 				if (type.contains("taxonname")) {
 					// when hit a taxon name, reset left and right to control
-					// damage inside one category
+					// damage inside one category					
 					left = 0;
 					right = 0;
 					continue;
@@ -1264,9 +1277,9 @@ public class ContentExtract {
 		return false;
 	}
 
-	protected boolean isPureQuestionMark(String para) {
+	protected boolean isNonWordLine(String para) {
 		para = para.trim();
-		if (para.matches("(\\?\\s*)+")) {
+		if (para.matches("[^\\w]+")) {
 			return true;
 		}
 		return false;
@@ -1870,6 +1883,10 @@ public class ContentExtract {
 		ResultSet rs = DatabaseAccessor.getParagraphsByCondition(prefix,
 				"type like 'content%'", "paraID desc", "*", conn);
 		String combinedPara = "";
+		String note = "";
+		boolean containsTaxon = false;
+		boolean previousContainsTaxon = false;
+		Pattern p_taxon = Pattern.compile(taxonNamePattern + ".*\\d\\d\\d\\d.*\\[.*\\].*");
 		ArrayList<ParagraphBean> cleanParas = new ArrayList<ParagraphBean>();
 		while (rs.next()) {
 			String type = rs.getString("type");
@@ -1882,13 +1899,75 @@ public class ContentExtract {
 			String currentPara = rs.getString("paragraph");
 			combinedPara = combineParas(currentPara, combinedPara);
 
-			if (!add2last/* || type.contains("taxonname") */) {
+			if (!add2last/* || type.contains("taxonname") */) {	
+				if (containsTaxon) {
+					if (currentPara.endsWith("pro")) {
+						containsTaxon = false;
+					}
+				}
 				ParagraphBean pb = new ParagraphBean(combinedPara,
-						rs.getInt("paraID"));
+						rs.getInt("paraID"));				
 				pb.normalize();
+				//if containts taxonname, set a sign for later output
+				//check how to set taxonname, there must have at least '[' in the pattern
+				//use note field to list problems: 1. unmatched brackets, 2. containing taxon name
+				
+				//check []
+				String bs = combinedPara.replaceAll("[^\\[\\]]", "").trim()
+						.replaceAll("\\[\\]", "").replaceAll("\\[\\]", "")
+						.replaceAll("\\[\\]", "");
+				int left = bs.replaceAll("[^\\[]", "").trim().length();
+				int right = bs.replaceAll("[^\\]]", "").trim().length();
+				
+				if (left > right) {
+					note += "unmatched [ ; ";
+				} else if (left < right) {
+					note += "unmatched ] ; ";
+				}
+				
+				//check ()
+				bs = combinedPara.replaceAll("[^\\(\\)]", "").trim()
+						.replaceAll("\\(\\)", "").replaceAll("\\(\\)", "")
+						.replaceAll("\\(\\)", "");
+				left = bs.replaceAll("[^\\(]", "").trim().length();
+				right = bs.replaceAll("[^\\)]", "").trim().length();
+				
+				if (left > right) {
+					note += "unmatched ( ; ";
+				} else if (left < right) {
+					note += "unmatched ) ; ";
+				}
+				
+				if (containsTaxon || previousContainsTaxon) {
+					note += "Contains taxon;"; 
+				}
+				pb.setNote(note);
 				pb.setSource(rs.getString("source"));
 				cleanParas.add(pb);
 				combinedPara = "";
+				note = "";
+				containsTaxon = false;
+				previousContainsTaxon = false;
+			} else {
+				if (containsTaxon) {
+					if (currentPara.endsWith("pro")) {
+						containsTaxon = false;
+					} else {
+						previousContainsTaxon = true;
+					}
+				}
+				if (type.contains("taxonname")) {
+					Matcher m = p_taxon.matcher(combinedPara);
+					if (m.matches()) {
+						//is in [], so there is ] before [
+						int index_right = combinedPara.indexOf("]");
+						int index_left = combinedPara.indexOf("[");
+						if (index_right < 0 /*there is no ]*/
+								|| (index_left > 1 && index_left < index_right) /*there is ] but there is also [ before ]*/) {
+							containsTaxon = true;
+						}
+					}
+				}
 			}
 		}
 
@@ -2057,23 +2136,44 @@ public class ContentExtract {
 			DatabaseAccessor.selectDistinctSources(this.prefix, sources,
 					this.conn);
 			Iterator<String> it = sources.iterator();
+			boolean hasLog = false;
+			StringBuffer log = new StringBuffer();
 			while (it.hasNext()) {
+				int count = 0;
 				String filename = (String) it.next();
 				String condition = "source=\"" + filename + "\"";
 				ResultSet rs = DatabaseAccessor.getParagraphsByCondition(
 						this.prefix + "_clean", condition, "", "*", conn);
-				StringBuffer sb = new StringBuffer();
+				StringBuffer sb = new StringBuffer();				
+				log.append(System.getProperty("line.separator") 						
+						+ filename + System.getProperty("line.separator"));
 				while (rs.next()) {
-					String p = rs.getString("paragraph");
+					count++;
+					String p = /*count + ": " + */rs.getString("paragraph");
+					String note = rs.getString("note");
+					if (!note.equals("")) {
+						hasLog = true;
+						log.append(note + System.getProperty("line.separator") + p 
+								+ System.getProperty("line.separator") + System.getProperty("line.separator"));
+					}
 					sb.append(p + System.getProperty("line.separator")
 							+ System.getProperty("line.separator"));
 				}
 				filename = filename.replaceFirst("\\.[a-z]+$", "_cleaned.txt");
 				write2File(sb.toString(), filename);
 			}
+			if (hasLog) {
+				write2File(log.toString(), "log.txt");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private void checkParagraph(String p, int count) {	
+		//check un-matched []
+		
+		//check internal taxon pattern
 	}
 
 	private void write2File(String text, String filename) {
@@ -2119,19 +2219,19 @@ public class ContentExtract {
 		String fnt1 = "'";
 		footNoteTokens.add(fnt1);
 
-		ContentExtract cf = new ContentExtract();
+		ContentExtract contentExtract = new ContentExtract();
 		System.out.println("started: " + new Date(System.currentTimeMillis()));
 
-		cf.readPages();
+		contentExtract.readPages();
 		System.out.println("readPages completed "
 				+ new Date(System.currentTimeMillis()));
 
-		cf.identifyContent();
+		contentExtract.identifyContent();
 
-		cf.getCleanParagraph();
+		contentExtract.getCleanParagraph();
 		// output file
-		cf.outputCleanContent();
-		System.out.println("content extract finished: (" + cf.spacefixed +
+		contentExtract.outputCleanContent();
+		System.out.println("content extract finished: (" + contentExtract.spacefixed +
 				"space fixed) "
 				+ new Date(System.currentTimeMillis()));
 	}

@@ -20,6 +20,8 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.output.XMLOutputter;
 
+import com.sun.xml.internal.bind.v2.runtime.Name;
+
 public class TXT2XML {
 
 	/**
@@ -55,6 +57,7 @@ public class TXT2XML {
 		tx.ExtractTaxon();
 		System.out.println("Convert finished");
 	}
+		
 
 	/**
 	 * constructing function: get txt files needs to process
@@ -85,9 +88,9 @@ public class TXT2XML {
 			conn = DriverManager.getConnection(url);
 		} catch (Exception e) {
 			e.printStackTrace();
-		}
-
+		}		
 	}
+	
 
 	/**
 	 * process taxon by file
@@ -123,9 +126,9 @@ public class TXT2XML {
 					line = line.replaceAll("–", "-");
 					Pattern pattern = Pattern
 							.compile(Patterns.taxonNamePattern);
-					Matcher m = pattern.matcher(line);
+					Matcher m_taxon = pattern.matcher(line);
 					int firstBracket = line.indexOf("[");
-					if (m.matches() || isUncertain(line)) {
+					if (m_taxon.matches() || isUncertain(line)) {
 						//is a taxon 
 						
 						this.taxonCount++;
@@ -166,12 +169,10 @@ public class TXT2XML {
 								name = m_s.group(1).trim();
 								rest = m_s.group(2).trim();
 								if (rest.indexOf("]") > 0) {
-									int des_index = getDescriptionIndex(line);
-									name_info = line.substring(0,
-											des_index + 1).trim();
-									rest = line.substring(
-											des_index + 1,
-											line.length()).trim();
+									ArrayList<String> name_and_des = separateNameInfo(line);
+									//int des_index = getDescriptionIndex(line);
+									name_info = name_and_des.get(0);
+									rest = name_and_des.get(1);
 								} else {
 									name_info = name;
 								}
@@ -200,18 +201,17 @@ public class TXT2XML {
 							String beforeBracket = line.substring(0, firstBracket);
 							name = getName(beforeBracket);	
 							
-							int des_index = getDescriptionIndex(line);
-							name_info = line.substring(0,
-									des_index + 1).trim();
-							rest = line.substring(des_index + 1,
-									line.length()).trim();
+							ArrayList<String> name_and_des = separateNameInfo(line);
+							//int des_index = getDescriptionIndex(line);
+							name_info = name_and_des.get(0);
+							rest = name_and_des.get(1);
 						}
 
 						// get discription, rest after name_info; other_info:
 						// from --Fig
 						if (rest.length() > 0) {
 							Pattern p_descrip = Pattern
-									.compile("(.*?)(-\\s?-\\s?F\\s?[i|I|l]\\s?[g|G])(.*?)");
+									.compile("(.*?)(-\\s?-\\s?F\\s?[i|I|l]\\s?[g|G])(.*?$)");
 							Matcher m_descrip = p_descrip.matcher(rest);
 							if (m_descrip.matches()) {
 								description = m_descrip.group(1);
@@ -238,8 +238,9 @@ public class TXT2XML {
 						reachedEnd = descripAndAge.get(2).equals("y") ? true : false;
 						
 						//description may contain [] (volume E_3_1), need to get rid of the last []
-						Pattern p_bracket = Pattern.compile("(.*?)((\\[[^\\[\\]]*?\\]\\s*)+)");
-						Matcher m_bracket = p_bracket.matcher(description);
+						//(.*?)(\\[[^\\[\\]]*?((\\[[^\\[\\]]*?\\])[^\\[\\]]*?)*\\]\\s?)+
+						Pattern p_bracket = Pattern.compile("(.*?)((\\[[^\\[\\]]*?((\\[[^\\[\\]]*?\\])[^\\[\\]]*?)*\\]\\s*)+\\.?)");
+						Matcher m_bracket = p_bracket.matcher(description.trim());
 						if (m_bracket.matches()) {
 							description = m_bracket.group(1);
 							discussion = m_bracket.group(2);
@@ -361,6 +362,7 @@ public class TXT2XML {
 	}
 	
 	protected ArrayList<String> getAge(String description) {
+		description = description.replaceAll("Per mian", "Permian").replaceAll("De-v onian", "Devonian");
 		String agepart = "";
 		String hasAge = "n";
 		ArrayList<String> strings = new ArrayList<String>();
@@ -389,6 +391,45 @@ public class TXT2XML {
 		return strings;
 	}
 	
+	//separate nameinfo and description
+	protected ArrayList<String> separateNameInfo(String line) {
+		ArrayList<String> rs = new ArrayList<String>();
+		//case like: I. (Ivdelinia). With strongly raised costae or plicae, with median septum. 
+		String sub_gegus = "^([A-Z]\\.\\s\\([A-Z][a-z]+\\)\\.\\s?)(.*?)";
+		Pattern p = Pattern.compile(sub_gegus);
+		Matcher m = p.matcher(line);
+		if (m.matches()) {
+			if (m.group(1) != null) {
+				rs.add(m.group(1));
+			}
+			if (m.group(2) != null) {
+				rs.add(m.group(2));
+			}
+		} else {//regular cases
+			String name_info = "^([^\\[\\]]*?(\\[[0-9]+\\][^\\[\\]]*?)*" +
+					"(\\[[^\\[\\]]*?((\\[[^\\[\\]]*?\\])[^\\[\\]]*?)*\\]\\s?)+\\.?\\s?)(.*?)";
+			p = Pattern.compile(name_info);
+			m = p.matcher(line);
+			if (m.matches()) {
+				if (m.group(1) != null) {
+					rs.add(m.group(1));
+				}
+				if (m.group(6) != null) {
+					rs.add(m.group(6));
+				}
+			} else {
+				int des_index = getDescriptionIndex(line);
+				rs.add(line.substring(0,
+						des_index + 1).trim());
+				rs.add(line.substring(
+						des_index + 1,
+						line.length()).trim());
+			}
+		}
+		return rs;
+	}
+	
+	//use [] counter to seperate name_info and description
 	protected int getDescriptionIndex(String line) {
 		int index = 0;
 		String rest = line ;
@@ -396,6 +437,7 @@ public class TXT2XML {
 		String contentOfBracket = "";
 		while (true) {
 			int i = rest.indexOf("]");
+			//int l = rest.indexOf("[");
 			index = index + 1 + i;
 			if (index < 0) {
 				break;
@@ -410,6 +452,12 @@ public class TXT2XML {
 			if (contentOfBracket.matches(".*?\\[[0-9]+\\]") && rest.indexOf("[") > 0) {
 				continue;
 			}
+			
+			//in case of [xx [xx] xx ]
+			/*if (l > 2 && l < i && rest.indexOf("]") > 0) {
+				continue;
+			}*/
+				
 			rest_trim = rest.trim();
 			if (!rest_trim.startsWith("[")) {
 				break;
