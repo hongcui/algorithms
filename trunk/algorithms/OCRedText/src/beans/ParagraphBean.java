@@ -4,6 +4,7 @@ public class ParagraphBean {
 	private int originalID;
 	private String para;
 	private String source;
+	private String note = "";
 
 	public void normalize() {
 		para.replaceAll("(?<=[a-z])-\\s+(?=[a-z])", "-")
@@ -37,5 +38,13 @@ public class ParagraphBean {
 
 	public void setSource(String source) {
 		this.source = source;
+	}
+
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note; 
 	}
 }

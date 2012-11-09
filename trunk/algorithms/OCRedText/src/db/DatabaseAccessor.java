@@ -57,7 +57,7 @@ public class DatabaseAccessor {
 					+ "source varchar(500), paragraph text(5000), "
 					+ "type varchar(50), add2last varchar(10), "
 					+ "remark varchar(50), " + "pageNum varchar(20),"
-					+ "y1 int" + ")");
+					+ "y1 int, " + "note varchar(100) default ''" + ")");
 			stmt.execute("delete from " + prefix + "_paragraphs");
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create table" + prefix + "_paragraphs::" + e);
@@ -103,7 +103,7 @@ public class DatabaseAccessor {
 			stmt.execute("create table if not exists " + tableName
 					+ " (paraID bigint not null primary key auto_increment, "
 					+ "orgParaID bigint, " + "source varchar(50), "
-					+ "paragraph text(5000), " + "remark varchar(50))");
+					+ "paragraph text(5000), " + "remark varchar(50), note varchar(100) default '')");
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create table" + tableName + "::" + e);
 			e.printStackTrace();
@@ -290,16 +290,14 @@ public class DatabaseAccessor {
 	public static void insertCleanParagraph(String cleanTableName,
 			ParagraphBean pb, Connection conn) throws Exception {
 		Statement stmt = null;
-
-		// conn = DriverManager.getConnection(url);
 		stmt = conn.createStatement();
 		String source = pb.getSource().replaceAll("'", "_");
 		String para = pb.getPara().replaceAll("'", "\\\\'");
 		String value = pb.getOriginalID() + ", '" + source + "', '" + para
-				+ "'";
+				+ "', '" + pb.getNote() + "'";
 		try {
 			stmt.execute("insert into " + cleanTableName
-					+ " (orgParaID, source, paragraph) values (" + value + ")");
+					+ " (orgParaID, source, paragraph, note) values (" + value + ")");
 		} catch (Exception e) {
 			LOGGER.error("Couldn't insert (" + value + ") to table "
 					+ cleanTableName + "::" + e);
