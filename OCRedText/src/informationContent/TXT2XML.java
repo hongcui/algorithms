@@ -70,16 +70,17 @@ public class TXT2XML {
 
 		// construct ranks
 		ranks.put("Phylum", 1);
-		ranks.put("Class", 2);
-		ranks.put("Subclass", 3);
-		ranks.put("Order", 4);
-		ranks.put("Suborder", 5);
-		ranks.put("Superfamily", 6);
-		ranks.put("Family", 7);
-		ranks.put("Subfamily", 8);
-		ranks.put("Genus", 9);
-		ranks.put("Subgenera", 10);
-		ranks.put("Subgenus", 11);
+		ranks.put("Subphylum", 2);
+		ranks.put("Class", 3);
+		ranks.put("Subclass", 4);
+		ranks.put("Order", 5);
+		ranks.put("Suborder", 6);
+		ranks.put("Superfamily", 7);
+		ranks.put("Family", 8);
+		ranks.put("Subfamily", 9);
+		ranks.put("Genus", 10);
+		ranks.put("Subgenera", 11);
+		ranks.put("Subgenus", 12);
 
 		// get conn
 		try {
