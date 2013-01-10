@@ -1,4 +1,4 @@
-File contentExtract.java is a runnable class. It is designed to extract taxonomic descriptions from given pdf files.
+File contentExtract_2.java is a runnable class. It is designed to extract taxonomic descriptions from given pdf files.
 This class has been tested in 
 
 
@@ -24,3 +24,41 @@ note: no space in file name if in windows
 element (rather than every word, the default)]
 
 $djvutoxml <input djvu file> <output xml file>
+
+
+before you run the ContentExtract_2.java:
+First, you need to prepare two files:
+1. the converted .xml file of the pdf. You should have got it by the command lines above. 
+2. the copied .txt file of the pdf. Open the pdf file, and press Ctrl+A to select all text, then copy 
+the text to a .txt file with the same name of the .xml file. 
+
+.xml files and .txt files should be in different folders. 
+
+Then, you need to set some parameters: 
+1. 	private String outputPath = "E:\\work_data\\clean_o\\";
+This path defines the output folder of the txt file. 
+line 83
+2.  private String txtPath = "E:\\work_data\\txt\\";
+This path defines the folder which holds the copied .txt files.
+line 84
+3.  sourceFilePath = "/Users/ra/work_data/test";
+This path defines the folder which holds the converted .xml files by djvu. 
+line 203
+4.	this.startText = "Order Agelasida Hartman, 1980";
+startText is the text of the first line of the content you want. This will help you saving some processing time.
+line 204
+5.	this.startPage = "1";
+This is the page of the startText. 
+6.	this.endText = "KEY TO FAMILIES";
+similar to startText, this is the last line of the content you want. 
+7.	this.left_column_end = 1249;
+left_column_end and right_column_start are the coordinates that are used to separate the left and right 
+columns. Because each document may have different coordinates, we need to specify it for each document. 
+You can get these two numbers in the converted .xml files. 
+The format of the coordinates is: coords="250,179,1762,149", the four numbers are left, bottom, right, top. 
+You need to mannually check which number is the end of the left columns and which is the start of the right 
+columns.   
+8.	this.right_column_start = 1299;
+
+You also need a database named sourcedatasets. Make sure it can be accessed by termsuser with password
+termspassword.
