@@ -80,7 +80,7 @@ public class ContentExtract_2 {
 	private String startPage = "331";
 	private boolean contentEnded = false;
 	private String cleanTableSurfix = "_clean_paragraphs";
-	private String outputPath = "/Users/ra/work_data/output/";
+	private String outputPath = "E:\\work_data\\clean_o\\";
 	private String txtPath = "E:\\work_data\\txt\\";
 	private String txtFileSuffix = ".txt";
 	private int lengthOfFootnoteKey = 50;
@@ -97,6 +97,7 @@ public class ContentExtract_2 {
 	private ContentExtract_2() {
 		this.taxonNamePattern = Patterns.taxonNamePattern;
 		String sourceFilePath = "";
+		this.outputPath = "E:\\work_data\\clean\\";
 		this.figtblTxtPattern = "^\\d+(\\.\\d+)?\\s?\\??mm?"
 				+ "|(\\d\\d?[a-z]*\\d?)(\\s?\\d\\d?[a-z])*\\'*" + "|[a-z0-9]*"
 				+ "|[a-z]+" + "|[a-z][0-9](\\s[a-z][0-9])+" + "|[A-Z]+\\'*"
@@ -197,15 +198,6 @@ public class ContentExtract_2 {
 //		 this.endText = "EXPLANATION OF CORRELATION CHART";
 //		 this.left_column_end = 960;
 //		 this.right_column_start = 990;
-		
-		
-		//other volumes
-		sourceFilePath = "/Users/ra/work_data/test";
-		this.startText = "Order Agelasida Hartman, 1980";
-		this.startPage = "1";
-		this.endText = "KEY TO FAMILIES";
-		this.left_column_end = 1249;
-		this.right_column_start = 1299;
 
 		this.page_middle_point = (this.right_column_start + this.left_column_end) / 2;
 		this.sourceFile = new File(sourceFilePath);
