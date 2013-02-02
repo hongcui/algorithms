@@ -13,7 +13,11 @@ public class Taxon {
 	private String tx_hierarchy = "";
 	private int index;
 	private String ageAndRest = "";
+
 	
+	public Taxon(String name) {
+		this.name = name;
+	}
 	
 	public Taxon(String name, String rank, int rankNo) {
 		this.name = name;

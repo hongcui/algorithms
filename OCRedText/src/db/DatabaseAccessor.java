@@ -124,7 +124,7 @@ public class DatabaseAccessor {
 					+ "_taxon_relation");
 			String sql = "create table if not exists " + tableName
 					+ "_taxon_relation " + " (name varchar(200), "
-					+ "filename varchar(50), " + "taxon_hierarchy varchar(1000))";
+					+ "filename varchar(100), " + "taxon_hierarchy varchar(1000))";
 			stmt.execute(sql);
 		} catch (Exception e) {
 			LOGGER.error("Couldn't create tabke " + tableName + " :: " + e);
@@ -913,6 +913,29 @@ public class DatabaseAccessor {
 		}
 	}
 
+	
+	public static void insertTaxonFileRelation(String prefix, String name,
+			String taxon_hierarchy, String filename, Connection conn)
+			throws Exception {
+		PreparedStatement ps = null;
+		try {
+			ps = conn.prepareStatement("insert into "
+					+ prefix
+					+ "_taxon_relation (name, filename, taxon_hierarchy) values (?, ?, ?)");
+			ps.setString(1, name);
+			ps.setString(2, filename + ".xml");
+			ps.setString(3, taxon_hierarchy);
+			ps.execute();
+		} catch (Exception e) {
+			System.out.println("Couldn't insert to table "
+					+ prefix + "_taxon_relation::");
+			LOGGER.error("Couldn't insert to table " + prefix
+					+ "_taxon_relation::" + e);
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+	
 	/**
 	 * @param args
 	 */

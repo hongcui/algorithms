@@ -1,0 +1,23 @@
+Step 1: prepare xmls files
+a. pdf -> djvu -> xml
+b. modify xml files by removing the DOCTYPE line (usually 2nd line)
+<!DOCTYPE DjVuXML PUBLIC "-//W3C//DTD DjVuXML 1.1//EN" "pubtext/DjVuXML-s.dtd">
+
+Step 2: prepare copied txt files (objective: solve the spaces in hidden text)
+select all from pdf, copy to a .txt file with the same name.
+
+Step 3: configuration
+a. /*Paths: make sure .txt has the same name with .xml files*/
+	public String filesPath = "E:\\work_data\\systemaporifera\\";
+	public String sourceXmlsPath = "";
+	public String sourceTxtsFolderName = "txts";
+	public String outputPath = "E:\\work_data\\systemaporifera\\output\\";
+b. 	Add the middle point for each xml file	
+	middlePoints.put("chapter-89_Agelasida", 1273);//(1248 + 1299)/2
+	
+	get the 3rd coordinate of a typical left column line
+	get the 1st coordinate of a typical right column line
+	then do the math
+	
+	if there is only one column, don't set the middle point to be a large number, 
+	e.g. 10000
