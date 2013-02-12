@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,14 +33,15 @@ public class Txt2Xml_sponges {
 	/*paths*/
 	public String folderpath = "E:\\work_data\\systemaporifera\\cleanText";//for windows
 	public String outputPath = "E:\\work_data\\systemaporifera\\FinalOutput\\";//for windows
-	public String xmlFolerName = "Taxons\\";//for windows
+	public String xmlFolerPath = "E:\\work_data\\systemaporifera\\Taxons\\";//for windows
+	public String descriptionFolerPath = "E:\\work_data\\systemaporifera\\Descriptions\\";
 	private String directorySeparator = "\\";//for windows
 	
 	/*Pattern*/
 	//SYCYSSA HAECKEL, 1872 (INCERTAE SEDIS)
 	public String taxonNamePattern = "^(†|\\?)?(([A-ZÉÖÀÜé]('[A-ZÉÖÀÜé])?[a-zé?-]+(\\s|,|))|([A-ZÉÖÀÜé-]+(\\s|,))|(&|\\s|de))+(ET\\sAL\\.,)?((\\s[0-9]{4}[a-z]?(:\\s[0-9]+)?\\.?)|([A-Za-z]{3,6}\\.\\s?[A-Za-z]{3}\\.)|(\\sIN\\sPRESS))(\\s\\(.*\\))?(:(\\s[A-Z][a-zé]+)+)?$";
 	public String taxonNamePattern2 = "^‘[A-Z][a-z]+'\\s\\w+$"; //‘Lithistid' Demospongiae
-	public String titleStandOutPattern = "^(([A-Z]+,\\s)+[A-Z]+)|([A-Z][a-z-]+(\\s([‘']?[a-z-]+[‘']?\\s){0,3}[a-z-]+)?)|(([A-Z]+\\s)*[A-Z]+)\\.?$";
+	public String titleStandOutPattern = "^(([A-Z]+,\\s)+[A-Z]+)|([A-Z][a-z-]+(\\s([‘']?[a-z-]+[‘']?\\s){0,3}[a-z-]+)?)|([A-Z]+\\s\\(.+\\))|(([A-Z]+\\s)*[A-Z]+)\\.?$";
 	//Description of ‘representative' species 
 	public String titleEmbededPattern = "^(Definition|Synonymy|Restricted\\ssynonymy|Synonymy\\s\\(restricted\\)|" +
 			"Diagnosis|Age|Distribution|Type\\sspecies|Type-species|Scope|Other\\snames|Remarks)\\.\\s.+";
@@ -51,7 +53,7 @@ public class Txt2Xml_sponges {
 	public String keywordsPattern = "^((\\d{1,2}\\.)+\\s)?(Keywords|Key\\swords)" +
 			"(\\s?\\(.+\\)\\s?)?(\\.|:).+?";
 	
-	public String descriptionTitlesPattern = "^((Definition(\\sand\\sdiagnosis)?)|(Diagnosis(\\s\\(.+\\))?))$";
+	public String descriptionTitlesPattern = "^((Definition(\\sand\\sdiagnosis)?)|(Diagnosis(\\s\\(.+\\))?(\\sof\\s.+)?))(\\s\\(.+\\))?$";
 	public String firstLevelTitlePattern = "^((Age)|(Distribution)|(Scope(\\s\\(.+\\))?)|(Synonymy)|(Other\\snames)|(Type\\sspecies)|(Type-species)|(Restricted\\ssynonymy)|(Synonymy\\s\\(restricted\\)))$";
 	
 	//Description of second species - chapter 35
@@ -199,6 +201,7 @@ public class Txt2Xml_sponges {
 				Taxon_spnges taxon = null;
 				boolean contentStarted = false;/*set true when hit first taxon name*/
 				boolean isLastParaTitle = false;
+				boolean isSpecialTitle = false;
 				boolean betweenTaxonAndFirstTitle = false;
 				boolean desOfTypeSpeciesStarted = false;
 				String titleContainsSubtitles = "";
@@ -222,13 +225,14 @@ public class Txt2Xml_sponges {
 					}
 					
 					/*line is taxon name line*/
-					if (isTaxonName(line) && !isLastParaTitle) {
+					if (isTaxonName(line) && !(isLastParaTitle && isSpecialTitle)) {
 						//store the last working taxon
 						if (taxon != null) {
-							System.out.println("taxon name: " + taxon.getName());
-							System.out.println("    file name: " + taxon.getFile_name());
-							System.out.println("    rank: " + taxon.getRank());
-							System.out.println("    hierarchy: " + taxon.getHierarchy());
+							System.out.println("  taxon name: " + taxon.getName());
+							System.out.println("      name info: " + taxon.getName_info());
+							System.out.println("      file name: " + taxon.getFile_name());
+							System.out.println("      rank: " + taxon.getRank());
+							System.out.println("      hierarchy: " + taxon.getHierarchy());
 							
 							taxonList.add(taxon);
 							lastTypeSpeciesTitle = "";
@@ -267,19 +271,17 @@ public class Txt2Xml_sponges {
 							desOfTypeSpeciesStarted = false;
 						}
 						
+						if (isSynonymTitle(line) || line.toLowerCase().contains("review") 
+								|| line.toLowerCase().contains("type")) {
+							isSpecialTitle = true;
+						} else {
+							isSpecialTitle = false;
+						}
+						
 						continue; /*notice: joint title will be ignored*/
 					}
 					
 					/*line is not taxon and not title -> line is real content*/
-					
-					if (betweenTaxonAndFirstTitle) {
-					/*put into other_info*/
-						taxon.setOther_info(taxon.getOther_info() 
-								+ "\n"
-								+ line);
-						isLastParaTitle = false;
-						continue;
-					}
 					
 					/*real text: either add to last title, or add to last title of description of type species*/
 					if (desOfTypeSpeciesStarted) {
@@ -290,6 +292,15 @@ public class Txt2Xml_sponges {
 						if (isEmbededTitle(line)) {
 							lastTitle = getEmbededTitle(line);
 							betweenTaxonAndFirstTitle = false;
+						} else {
+							if (betweenTaxonAndFirstTitle) {
+								/*put into other_info*/
+									taxon.setOther_info(taxon.getOther_info() 
+											+ "\n"
+											+ line);
+									isLastParaTitle = false;
+									continue;
+							}
 						}
 						
 						/*add into specific position*/
@@ -301,10 +312,11 @@ public class Txt2Xml_sponges {
 				/*add the last taxon into taxonlist*/
 				if (taxon != null) {
 					taxonList.add(taxon);
-					System.out.println("taxon name: " + taxon.getName());
-					System.out.println("    file name: " + taxon.getFile_name());
-					System.out.println("    rank: " + taxon.getRank());
-					System.out.println("    hierarchy: " + taxon.getHierarchy());
+					System.out.println("  taxon name: " + taxon.getName());
+					System.out.println("      name info: " + taxon.getName_info());
+					System.out.println("      file name: " + taxon.getFile_name());
+					System.out.println("      rank: " + taxon.getRank());
+					System.out.println("      hierarchy: " + taxon.getHierarchy());
 				}
 
 			} catch (Exception e) {
@@ -402,7 +414,8 @@ public class Txt2Xml_sponges {
 	 */
 	public boolean createOutputFolders(){
 		boolean rv = false;
-		rv = new File(outputPath + this.volume).mkdir();
+		rv = new File(xmlFolerPath + this.volume).mkdir();
+		rv = new File(descriptionFolerPath + this.volume).mkdir();
 		return rv;
 	}
 	
@@ -707,10 +720,35 @@ public class Txt2Xml_sponges {
 	protected void outputTaxon(Taxon_spnges taxon) throws Exception {
 		// write xml file
 		outputXMLFile(taxon);
+		
+		outputTxtFile(taxon);
 
 		// add record to database: params: filename, name, hierarchy
 		DatabaseAccessor.insertTaxonFileRelation(volume, taxon.getName(),
 				taxon.getHierarchy(), taxon.getFile_name(), conn);
+	}
+	
+	private void outputTxtFile(Taxon_spnges taxon) {
+		try {
+			String description = "";
+			if (taxon.getDescription() != null) {
+				description += getTextFromHT(taxon.getDescription(), false, "");
+			}
+			
+			if (taxon.getDescription_of_type_species() != null) {
+				description += getTextFromHT(taxon.getDescription_of_type_species(), 
+						true, "description");
+			}
+			
+			
+			FileOutputStream fos = new FileOutputStream(descriptionFolerPath + volume + directorySeparator 
+					+ taxon.getFile_name() + ".txt");
+			OutputStreamWriter osw = new OutputStreamWriter(fos, "UTF-8");
+			osw.write(description);
+			osw.flush();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 	private void outputXMLFile(Taxon_spnges taxon) {
@@ -786,9 +824,7 @@ public class Txt2Xml_sponges {
 			}
 			
 			/*get description*/
-			Element description = new Element("description");
-			root.addContent(description);
-			addElements(description, taxon.getDescription());
+			addDescriptions(root, taxon.getDescription());
 			
 			/*get description of type species*/
 			if (taxon.getDescription_of_type_species() != null) {
@@ -797,11 +833,11 @@ public class Txt2Xml_sponges {
 					Element tsDescription = new Element(getTagName(ht.get("tagName")));
 					ht.remove("tagName");
 					root.addContent(tsDescription);
-					addElements(tsDescription, ht);		
+					addElements(tsDescription, ht, root);		
 				} else {
 					Element tsDescription = new Element("description_of_type_species");
 					root.addContent(tsDescription);
-					addElements(tsDescription, ht);
+					addElements(tsDescription, ht, root);
 				}
 			}
 			
@@ -809,11 +845,11 @@ public class Txt2Xml_sponges {
 			/*get discussion*/
 			Element discussion = new Element("discussion");
 			root.addContent(discussion);
-			addElements(discussion, taxon.getDiscussion());
+			addElements(discussion, taxon.getDiscussion(), root);
 			
 
 			// output xml file
-			File f = new File(outputPath + volume + directorySeparator, taxon.getFile_name() + ".xml");
+			File f = new File(xmlFolerPath + volume + directorySeparator, taxon.getFile_name() + ".xml");
 			XMLOutputter serializer = new XMLOutputter();
 			serializer.output(doc,
 					new DataOutputStream(new FileOutputStream(f)));
@@ -823,7 +859,27 @@ public class Txt2Xml_sponges {
 	}
 	
 	
-	public void addElements(Element parent, Hashtable<String, String> ht) {
+	public String getTextFromHT(Hashtable<String, String> ht, 
+			boolean filter, String filterStr) {
+		String txt = "";
+		Enumeration<String> enu = ht.keys();
+		while (enu.hasMoreElements()) {
+			String key = enu.nextElement();
+			if (filter) {
+				if (key.toLowerCase().contains(filterStr)) {
+					txt += "\nDescription of Typespecies \n";
+					txt += ht.get(key) + "\n\n";
+				}
+			} else {
+				txt += key + "\n";
+				txt += ht.get(key) + "\n\n";
+			}
+		}
+		return txt;
+	}
+	
+	
+	public void addElements(Element parent, Hashtable<String, String> ht, Element root) {
 		Enumeration<String> enu = ht.keys();
 		while (enu.hasMoreElements()) {
 			String key = enu.nextElement();
@@ -834,12 +890,41 @@ public class Txt2Xml_sponges {
 				if (ht.get(key) != null) {
 					e.setText(ht.get(key));
 					parent.addContent(e);
+										
+					if (key.toLowerCase().contains("description")) {
+						addDescription("type_species", ht.get(key), root);
+					}
 				} else {
 					System.out.println("--alert: value for " + key + "is empty");
-				}
-				
+				}								
 			} 
 		}
+	}
+
+	public void addDescriptions(Element parent, Hashtable<String, String> ht) {
+		Enumeration<String> enu = ht.keys();
+		while (enu.hasMoreElements()) {
+			String key = enu.nextElement();
+			if (key == null || key.equals("")) {
+				System.out.println("--alert: key is empty");
+			} else if (ht.get(key) != null) {
+				addDescription(key, ht.get(key), parent);					
+			} else {
+				System.out.println("--alert: value for " + key + "is empty");
+			}
+		}
+	}
+	
+	
+	public void addDescription(String type, String content, Element root) {
+		if (content != null && !content.equals("")) {
+			Element e = new Element("description");
+			//set type to be key
+			e.setAttribute("type", type);
+			
+			e.setText(content);
+			root.addContent(e);
+		}	
 	}
 	
 	public String cleanIllegalChars(String line) {
