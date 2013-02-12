@@ -138,6 +138,8 @@ public class ContentExtract_sponges {
 		
 		middlePoints.put("Chapter-66_Hymedesmiidae", 1236); // 1212, 1260
 		middlePoints.put("Chapter-57_Raspailiidae", 1236);
+		//1366 1416
+		middlePoints.put("Tabachnick_2002Rossellidae", 1390);
 		
 		
 		getFiles(this.sourceXmlsPath);		
