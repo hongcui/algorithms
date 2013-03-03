@@ -31,10 +31,11 @@ import db.DatabaseAccessor;
 
 public class ContentExtract_sponges {
 	/*Paths*/
-	public String filesPath = "E:\\work_data\\systemaporifera\\";
+	//D:\Work\Data\systemaporifera
+	public String filesPath = "D:\\Work\\Data\\systemaporifera\\";
 	public String sourceXmlsPath = "";
 	public String sourceTxtsFolderName = "txts";
-	public String outputPath = "E:\\work_data\\systemaporifera\\output\\";
+	public String outputPath = "D:\\Work\\Data\\systemaporifera\\output\\";
 	
 	/*Patterns*/
 	public String figurePattern = "(FlG|F\\s?i\\s?G|F\\s?I\\s?G|F\\s?i\\s?g)\\s?\\.\\s+\\d+\\s?\\.\\s+.*?";
@@ -491,6 +492,38 @@ public class ContentExtract_sponges {
 		// read all lines into leftside, crossingmiddle, rightside, remember
 		// their top
 		List lines = page.getChildren("LINE");
+		
+		//get specific middle point for "Tabachnick_2002Rossellidae"
+		if (fileName.startsWith("Tabachnick_2002Rossellidae")) {
+			int count_1 = 0, count_2 = 0;
+			for (int i = 0; i < lines.size(); i++) {
+				Element e_line = (Element) lines.get(i);
+				if (e_line != null) {
+					String coordinate = e_line.getAttributeValue("coords");
+					String[] coords = coordinate.split(",");
+					if (coords.length == 4) {
+						int c = Integer.parseInt(coords[0]);
+						if ((c > 240 && c < 260) || (c > 1290 && c < 1310)) {
+							count_1++;
+						} else if ((c > 240 && c < 260) || (c > 1290 && c < 1310)) {
+							count_2++;
+						}
+						
+						//count to 6
+						if (count_1 > count_2 && count_1 > 5) {
+							this.page_middle_point = 1274;
+							break;
+						} else if (count_2 > count_1 && count_2 > 5) {
+							this.page_middle_point = 1390;
+							break;
+						}
+					}
+				}
+				this.page_middle_point = middlePoints.get(fileName);
+			}
+		}
+		//end of getting the page_middle_point
+		
 		for (int i = 0; i < lines.size(); i++) {
 			Element e_line = (Element) lines.get(i);
 			if (e_line != null) {
