@@ -31,10 +31,10 @@ public class Txt2Xml_sponges {
 	 */
 	
 	/*paths*/
-	public String folderpath = "E:\\work_data\\systemaporifera\\cleanText";//for windows
-	public String outputPath = "E:\\work_data\\systemaporifera\\FinalOutput\\";//for windows
-	public String xmlFolerPath = "E:\\work_data\\systemaporifera\\Taxons\\";//for windows
-	public String descriptionFolerPath = "E:\\work_data\\systemaporifera\\Descriptions\\";
+	public String folderpath = "D:\\Work\\Data\\systemaporifera\\cleanText";//for windows
+	public String outputPath = "D:\\Work\\Data\\systemaporifera\\FinalOutput\\";//for windows
+	public String xmlFolerPath = "D:\\Work\\Data\\systemaporifera\\Taxons\\";//for windows
+	public String descriptionFolerPath = "D:\\Work\\Data\\systemaporifera\\Descriptions\\";
 	private String directorySeparator = "\\";//for windows
 	
 	/*Pattern*/

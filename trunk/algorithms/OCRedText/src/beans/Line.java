@@ -6,6 +6,7 @@ public class Line {
 	private int right_coord;
 	private int top_coord;
 	private String text;
+	private int status = 0;
 	
 	public Line(String t) {
 		this.set_text(t);
@@ -57,5 +58,13 @@ public class Line {
 
 	public void set_text(String text) {
 		this.text = text;
+	}
+
+	public int getStatus() {
+		return status;
+	}
+
+	public void setStatus(int status) {
+		this.status = status;
 	}
 }
