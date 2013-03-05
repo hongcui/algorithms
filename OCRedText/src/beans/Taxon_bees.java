@@ -10,7 +10,7 @@ public class Taxon_bees {
 	private String hierarchy = "";
 	private String distribution = "";
 	private ArrayList<String> type_species = new ArrayList<String>();
-	private String keyFile = "";
+	private ArrayList<String> keyFiles = new ArrayList<String>();
 	private int fileNumber = 0;
 	
 	public Taxon_bees() {
@@ -19,11 +19,11 @@ public class Taxon_bees {
 	
 	public Taxon_bees(String name, int fileNumber) {
 		this.name = name;
-		this.fileNumber = fileNumber;
+		this.setFileNumber(fileNumber);
 		this.setFilename(Integer.toString(fileNumber) + ". " + name.trim()
 				.replaceAll("É", "E").replaceAll("[ÖØ]", "O").replaceAll("À", "A")
 				.replaceAll("Ü", "U").replaceAll("[טיךכ]", "e").replaceAll("[נעפץצ]", "o")
-				.replaceAll("[אבגדה]", "a").replaceAll("שתûü", "u")
+				.replaceAll("[אבגדה]", "a").replaceAll("שתûü", "u").replaceAll("ÿ", "y")
 				.replaceAll("[^\\w\\s,\\.\\(\\)]", "_").replaceAll("_+", "_"));	
 	}
 	
@@ -57,12 +57,6 @@ public class Taxon_bees {
 	public void setType_species(ArrayList<String> type_species) {
 		this.type_species = type_species;
 	}
-	public String getKeyFile() {
-		return keyFile;
-	}
-	public void setKeyFile(String keyFile) {
-		this.keyFile = keyFile;
-	}
 	public String getHierarchy() {
 		return hierarchy;
 	}
@@ -76,5 +70,21 @@ public class Taxon_bees {
 
 	public void setFilename(String filename) {
 		this.filename = filename;
+	}
+
+	public int getFileNumber() {
+		return fileNumber;
+	}
+
+	public void setFileNumber(int fileNumber) {
+		this.fileNumber = fileNumber;
+	}
+
+	public ArrayList<String> getKeyFiles() {
+		return keyFiles;
+	}
+
+	public void setKeyFiles(ArrayList<String> keyFiles) {
+		this.keyFiles = keyFiles;
 	}
 }
