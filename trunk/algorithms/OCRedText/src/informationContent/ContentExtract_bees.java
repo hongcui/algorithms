@@ -47,7 +47,7 @@ public class ContentExtract_bees {
 	public String p_key_combined_title = p_key_title + "([\\w\\s]+|\\(.+\\))$";
 	public String p_key_statement_index = "(—\\s|\\d+\\(\\d+\\)|\\d+)\\.\\s";//
 	public String p_key_statement_start = "^" + p_key_statement_index + ".+";
-	public String p_key_statement_tail = ".*?\\.{3,}.+$";//over 3 continuous dots
+	public String p_key_statement_tail = ".*?\\.{2,}.+$";//over 2 continuous dots
 	public String p_key_statement = p_key_statement_start + p_key_statement_tail;//start + anything + tail
 	
 	public String p_normal_title = "^" + p_index + "Notes on.+$";
@@ -57,7 +57,7 @@ public class ContentExtract_bees {
 	//general word patterns
 	public String p_cap_word = "[A-Z][a-z]+";
 	//European characters
-	public String p_cap_word_wLatin = "[A-Z][a-zàáâãäæèéêëðòôõöùúûü]+";
+	public String p_cap_word_wLatin = "[A-Z][a-zàáâãäæèéêëðòôõöùúûüÿů]+";
 	
 	//pattern of taxon name	
 	public String p_taxon_rank = "Phylum|Subphylum|Class|Subclass|Order|Suborder|" +
@@ -84,9 +84,13 @@ public class ContentExtract_bees {
 	 * name style 2: [La][A-Z][a-z]+
 	 * name style 3: De\\s[A-Z][a-z]+
 	 */
-	public String p_taxon_author_single = "(La|[Dd]e\\s)?" + p_cap_word_wLatin;
-	public String p_taxon_author = p_taxon_author_single + 
-			"(\\sand\\s" + p_taxon_author_single +  ")?" + "(\\ss\\.\\sstr\\.)?";
+	//Roig-Alsina
+	public String p_taxon_author_single = "(La\\s?|Dalla\\s|[Dd]e\\s|Mac|Mc|[A-Z][a-zàáâãäæèéêëðòôõöùúûüÿů]+(\\sde\\s|-))?" + p_cap_word_wLatin;
+	public String p_taxon_author = p_taxon_author_single + "(,\\s" + p_taxon_author_single +
+			",)?" + 
+			"(\\sand\\s" + p_taxon_author_single +  ")?" + "(\\ss\\.\\sstr\\.)?(,\\snew\\sstatus)?(\\s\\[.+\\])?";
+	
+	// Engel, Brooks, and Yanega
 	
 	//public String p_taxon_yearOrPub = "";//index + rank + name + author + year or pub
 		
@@ -1101,7 +1105,7 @@ public class ContentExtract_bees {
 	 */
 	public int get_end_status(Line line, String type, Line last_line) {
 		String text = line.get_text();		
-		if (text.endsWith(".")) {//end with period
+		if (text.endsWith(".") || text.endsWith("!")) {//end with period
 			//if end with more than one period, it is the middle of a key statement. return 0
 			if (text.endsWith("..")) 
 				return 0;
@@ -1895,7 +1899,6 @@ public class ContentExtract_bees {
 				
 				Taxon_bees taxon = null;
 				KeyFile keyfile = null;
-				KeyStatement ks = null;
 				boolean inTaxon = true; //either in taxon or in key
 				
 				while ((line = br.readLine()) != null) {
@@ -1921,17 +1924,18 @@ public class ContentExtract_bees {
 							//create key file
 							keyfile = new KeyFile(keyHeading, keyFileNumber);
 							if (taxon != null) {
-								taxon.setKeyFile(keyfile.getFileName());	
+								taxon.setKeyFiles(addLineToArr(taxon.getKeyFiles(), 
+										keyfile.getFileName()));
 							}
-						}
-						
-						if (taxon != null) {
-							//add taxon to list
-							taxonList.add(taxon);
-							taxon = null;
 						} 
 						
 						if (isTaxon) {
+							if (taxon != null) {
+								//add taxon to list
+								taxonList.add(taxon);
+								taxon = null;
+							}
+							
 							inTaxon = true;
 							taxonFileNumber++;
 							//create taxon
@@ -2006,6 +2010,9 @@ public class ContentExtract_bees {
 	
 	public void updateLastKeyStatement(KeyFile kf, String line) {
 		ArrayList<KeyStatement> kss = kf.getStatements();
+		if (kss == null || kss.size() < 1) {
+			System.out.println("KSS is null");
+		}
 		KeyStatement last_ks = kss.get(kss.size() - 1);
 		
 		KeyChoice kc = new KeyChoice();
@@ -2128,6 +2135,10 @@ public class ContentExtract_bees {
 
 	private void outputXMLFile(Taxon_bees taxon) {
 		try {
+			System.out.println("--" + taxon.getFilename());
+			System.out.println("  rank - " + taxon.getRank());
+			System.out.println("  keys = " + taxon.getKeyFiles().toString());
+			
 			// create doc
 			Element root = new Element("treatment");
 			Document doc = new Document(root);
@@ -2155,7 +2166,7 @@ public class ContentExtract_bees {
 			addElement(root, taxon.getDistribution(), "distribution");
 			
 			//output key file name
-			addElement(root, taxon.getKeyFile(), "key_file");
+			addElements(root, taxon.getKeyFiles(), "key_file");//p218 test
 			
 			// output xml file
 			File f = new File(taxonFolder, taxon.getFilename() + ".xml");
@@ -2169,6 +2180,8 @@ public class ContentExtract_bees {
 	
 	private void outputKeyFile(KeyFile keyfile) {
 		try {
+			System.out.println("--" + keyfile.getFileName());
+			
 			// create doc
 			Element root = new Element("key");
 			Document doc = new Document(root);
