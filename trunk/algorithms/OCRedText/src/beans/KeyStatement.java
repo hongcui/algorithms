@@ -7,6 +7,10 @@ public class KeyStatement {
 	private String from_id;
 	private ArrayList<KeyChoice> choices = new ArrayList<KeyChoice>();
 	
+	//rose: each id has only one statement
+	private String statement = "";
+	private String determination = "";
+	
 	public String getId() {
 		return id;
 	}
@@ -25,5 +29,17 @@ public class KeyStatement {
 	}
 	public void setChoices(ArrayList<KeyChoice> choices) {
 		this.choices = choices;
+	}
+	public String getStatement() {
+		return statement;
+	}
+	public void setStatement(String statement) {
+		this.statement = statement;
+	}
+	public String getDetermination() {
+		return determination;
+	}
+	public void setDetermination(String determination) {
+		this.determination = determination;
 	}
 }
