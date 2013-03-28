@@ -1,6 +1,7 @@
 package beans;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 public class Taxon_bees {
 	private String name = "";
@@ -12,6 +13,11 @@ public class Taxon_bees {
 	private ArrayList<String> type_species = new ArrayList<String>();
 	private ArrayList<String> keyFiles = new ArrayList<String>();
 	private int fileNumber = 0;
+	private String nativeAttr = "";
+	
+	//rose
+	private Hashtable<String, String> paras = new Hashtable<>();
+	private ArrayList<String> tags = new ArrayList<>();
 	
 	public Taxon_bees() {
 		
@@ -86,5 +92,29 @@ public class Taxon_bees {
 
 	public void setKeyFiles(ArrayList<String> keyFiles) {
 		this.keyFiles = keyFiles;
+	}
+
+	public String getNativeAttr() {
+		return nativeAttr;
+	}
+
+	public void setNativeAttr(String nativeAtri) {
+		this.nativeAttr = nativeAtri;
+	}
+
+	public Hashtable<String, String> getParas() {
+		return paras;
+	}
+
+	public void setParas(Hashtable<String, String> paras) {
+		this.paras = paras;
+	}
+
+	public ArrayList<String> getTags() {
+		return tags;
+	}
+
+	public void setTags(ArrayList<String> tags) {
+		this.tags = tags;
 	}
 }
