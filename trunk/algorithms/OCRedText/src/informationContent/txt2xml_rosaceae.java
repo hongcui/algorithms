@@ -35,7 +35,7 @@ public class txt2xml_rosaceae {
 	}
 	
 	public String p_native = "^(NATURALIZED|NATIVE|UNABRIDGED|WAIF|JFP-4)$";
-	public String p_key_line = "^(\\d+[\\.'])\\s(.+)$";//1. Lvs
+	public String p_key_line = "^(\\d+)[\\.']\\s(.+)$";//1. Lvs
 	//public String p_main_key_line = "^(\\d+)\\.\\s.+$";
 	public String p_key_tail = "^.+\\.{3,}->(.+)$";
 	public String p_marked_para = "^([A-Z0-9\\+\\s]+):(\\s.*)?$";
@@ -72,6 +72,9 @@ public class txt2xml_rosaceae {
 	public String prefix = "";
 	public String source = "";
 	public String fileName = "";
+	
+	public int last_ks_index = 0;
+	public int last_key_id = 0;
 	
 	public void generateTaxonXmls() {
 		// get txt files
@@ -155,28 +158,93 @@ public class txt2xml_rosaceae {
 		return false;
 	}
 	
-	public KeyStatement processKeyStatement(String text) {
+	/**
+	 * last_ks_index
+	 * last_ks_id
+	 * @param text
+	 * @return
+	 */
+	public KeyFile processKeyStatement(String text, KeyFile kf) {
 		text = text.trim();
-		KeyStatement ks = new KeyStatement(); 
-	
+		KeyFile KF = kf;
 		try {
+			String myID = "";
 			text = text.trim();
 			Pattern p = Pattern.compile(this.p_key_line);
 			Matcher mt = p.matcher(text);
 			if (mt.matches()) {
-				ks.setId(mt.group(1));
-				ks.setStatement(text);
+				//ks.setId(mt.group(1));
+				myID = mt.group(1);
 			}
 			
+			KeyChoice kc = new KeyChoice();
+			kc.setStatement(text);
 			p = Pattern.compile(this.p_key_tail);
 			mt = p.matcher(text);
 			if (mt.matches()) {
-				ks.setDetermination(mt.group(1));
+				kc.setDetermination(mt.group(1));
 			}
+			
+			//find existing key statement
+			KeyStatement ks = null;
+			int ks_index = -1;
+			ArrayList<KeyStatement> kss = kf.getStatements();
+			
+			//update the next_id of last ks
+			if (Integer.parseInt(myID) > 1) {
+				KeyStatement ksToUpdate = kss.get(last_ks_index);
+				ArrayList<KeyChoice> kcs = ksToUpdate.getChoices();
+				for (int i = 0; i < kcs.size(); i++) {
+					KeyChoice kcc = kcs.get(i);
+					String next_id = kcc.getNext_id();
+					if (kcc.getDetermination() != null) {
+						continue;
+					}
+					if (next_id == null || next_id.equals("")) {
+						kcc.setNext_id(myID);
+						kcs.set(i, kcc);
+						ksToUpdate.setChoices(kcs);
+						kss.set(last_ks_index, ksToUpdate);
+						KF.setStatements(kss);
+						break;
+					}
+				}
+			}
+			
+			kss = kf.getStatements();
+			for (int i = 0; i < kss.size(); i++) {
+				KeyStatement k = kss.get(i);
+				if (k.getId().equals(myID)) {
+					ks = k;
+					ks_index = i;
+					break;
+				}
+			}
+			
+			//set from id
+			if (ks == null) {//new ks, new choice
+				ks = new KeyStatement();
+				ks.setId(myID);
+				if (last_key_id > 0) {
+					ks.setFrom_id(Integer.toString(last_key_id));
+				}
+				
+			}
+			ks.setChoices(addKeyChoiceToArr(ks.getChoices(), kc));
+			
+			if (ks_index > -1) {
+				kss.set(ks_index, ks);
+				last_ks_index = ks_index;
+			} else {
+				kss.add(ks);
+				last_ks_index = kss.size() - 1;
+			}
+			KF.setStatements(kss);
+			last_key_id = Integer.parseInt(myID);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return ks;
+		return KF;
 	}
 	
 	
@@ -314,6 +382,8 @@ public class txt2xml_rosaceae {
 							taxon.setRank(myRank);	
 							taxon.setNativeAttr(nativeAttr);
 							nativeAttr = "";
+							last_key_id = 0;
+							last_ks_index = 0;
 							//no hierarchy since rank is not accurate
 							/*if (!myRank.equals("undertermined")) {
 								priorRanks.put(myRank, taxonname);	
@@ -346,8 +416,7 @@ public class txt2xml_rosaceae {
 						}
 						
 						//process key statement
-						KeyStatement ks = processKeyStatement(line);
-						keyfile.setStatements(addKeyStatemenToArr(keyfile.getStatements(), ks));
+						keyfile = processKeyStatement(line, keyfile);
 					} else {
 						System.out.println("!!! unexpected line !!!");
 					}
@@ -510,6 +579,12 @@ public class txt2xml_rosaceae {
 		return rv;
 	}
 	
+	public ArrayList<KeyChoice> addKeyChoiceToArr(ArrayList<KeyChoice> originalList, KeyChoice kc) {
+		ArrayList<KeyChoice> rv = originalList;
+		rv.add(kc);
+		return rv;
+	}
+	
 	public Hashtable<String, String> addToHashTable(String key, String value, 
 			Hashtable<String, String> ht) {
 		if (! key.equals("") && ht.get(key) == null) {
@@ -652,12 +727,16 @@ public class txt2xml_rosaceae {
 				root.addContent(e_ks);
 				
 				addElement(e_ks, ks.getId(), "statement_id");
-				//addElement(e_ks, ks.getFrom_id(), "statement_from_id");
-				Element e_kc = new Element("key_choice");
-				e_ks.addContent(e_kc);
+				addElement(e_ks, ks.getFrom_id(), "statement_from_id");	
 				
-				addElement(e_kc, ks.getStatement(), "statement");
-				addElement(e_kc, ks.getDetermination(), "determination");
+				ArrayList<KeyChoice> kcs = ks.getChoices();
+				for (KeyChoice kc : kcs) {
+					Element e_kc = new Element("key_choice");
+					e_ks.addContent(e_kc);
+					addElement(e_kc, kc.getStatement(), "statement");
+					addElement(e_kc, kc.getNext_id(), "next_id");
+					addElement(e_kc, kc.getDetermination(), "determination");	
+				}
 			}
 						
 			// output xml file
