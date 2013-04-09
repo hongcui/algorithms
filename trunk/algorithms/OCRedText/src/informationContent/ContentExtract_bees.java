@@ -45,7 +45,7 @@ public class ContentExtract_bees {
 	//
 	public String p_key_title = "^(" + p_index + ")?" + "(Practical\\s)?Key\\sto\\s.+";
 	public String p_key_combined_title = p_key_title + "([\\w\\s]+|\\(.+\\))$";
-	public String p_key_statement_index = "(—\\s|\\d+\\(\\d+\\)|\\d+)\\.\\s";//
+	public String p_key_statement_index = "(—\\s|\\d+\\(\\d+\\)|\\d+)(\\s\\[triplet\\])?\\.\\s";//
 	public String p_key_statement_start = "^" + p_key_statement_index + ".+";
 	public String p_key_statement_tail = ".*?\\.{2,}.+$";//over 2 continuous dots
 	public String p_key_statement = p_key_statement_start + p_key_statement_tail;//start + anything + tail
@@ -77,7 +77,7 @@ public class ContentExtract_bees {
 	 * author is attached to taxon name
 	 * style 1: name
 	 * style 2: name 1 + and + name 2
-	 * style 3: name + s. str.
+	 * style 3: name + , s. str.
 	 * style 4: name 1 + and name 2 + s. str.
 	 * 
 	 * name style 1: [A-Z][a-z]+
@@ -85,10 +85,12 @@ public class ContentExtract_bees {
 	 * name style 3: De\\s[A-Z][a-z]+
 	 */
 	//Roig-Alsina
+	//Uromonia / Subgenus Nesomonia Michener, Brooks and Pauly 
+	//Leioproctus / Subgenus Albinapis Urban and Graf, new status.
 	public String p_taxon_author_single = "(La\\s?|Dalla\\s|[Dd]e\\s|Mac|Mc|[A-Z][a-zàáâãäæèéêëðòôõöùúûüÿů]+(\\sde\\s|-))?" + p_cap_word_wLatin;
 	public String p_taxon_author = p_taxon_author_single + "(,\\s" + p_taxon_author_single +
 			",)?" + 
-			"(\\sand\\s" + p_taxon_author_single +  ")?" + "(\\ss\\.\\sstr\\.)?(,\\snew\\sstatus)?(\\s\\[.+\\])?";
+			"(\\sand\\s" + p_taxon_author_single +  ")?" + "(,?\\ss\\.\\sstr\\.)?(,\\snew\\sstatus\\.?)?(\\s\\[.+\\])?";
 	
 	// Engel, Brooks, and Yanega
 	
@@ -1628,6 +1630,8 @@ public class ContentExtract_bees {
 			Matcher mt = p.matcher(text);
 			if (mt.matches()) {
 				return true;
+			} else if (text.equals("Uromonia / Subgenus Nesomonia Michener, Brooks and Pauly")) {
+				return true;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -1964,7 +1968,9 @@ public class ContentExtract_bees {
 							taxon.setText(addLineToArr(taxon.getText(), line));
 						}
 					} else { // in key file
+						
 						if (isCompletedKeyStatement(line)) {
+							/*
 							if (line.matches("^\\d.+")) {//is start of a statement
 								//add a key statement
 								keyfile.setStatements(
@@ -1972,9 +1978,41 @@ public class ContentExtract_bees {
 								
 							}
 							updateLastKeyStatement(keyfile, line);
+							*/
+							
+							//process ks
+							//get statement_id, ignore from id
+							KeyStatement ks = new KeyStatement();
+							ArrayList<KeyStatement> kss = keyfile.getStatements();								
+							Pattern p = Pattern.compile("^(\\d+)[\\(\\.].+");
+							Matcher m = p.matcher(line);
+							if (m.matches()) {
+								ks.setId(m.group(1));
+							} else {
+								//last id plus '
+								ks.setId(kss.get(kss.size() - 1).getId() + "'");
+							}
+							
+							//get statement
+							ks.setStatement(line);
+							
+							//get determination & next id
+							p = Pattern.compile("^.+\\.{2,}\\s(\\d+)$");
+							Matcher mt = p.matcher(line);
+							if (mt.matches()) {
+								ks.setNext_id(mt.group(1));
+							} else {
+								ks.setDetermination(line.substring(line.lastIndexOf("..") + 2, line.length()).trim());
+							}
+							
+							//update key file
+							kss.add(ks);
+							keyfile.setStatements(kss);
 						} else {//add to discussion
 							keyfile.setDiscussion(addLineToArr(keyfile.getDiscussion(), line));
+							System.out.println("DISCUSS: " + line);
 						}
+						
 					}
 				}
 				
@@ -2196,8 +2234,13 @@ public class ContentExtract_bees {
 				root.addContent(e_ks);
 				
 				addElement(e_ks, ks.getId(), "statement_id");
-				addElement(e_ks, ks.getFrom_id(), "statement_from_id");
+				//addElement(e_ks, ks.getFrom_id(), "statement_from_id");
 				
+				addElement(e_ks, ks.getStatement(), "statement");
+				addElement(e_ks, ks.getDetermination(), "determination");
+				addElement(e_ks, ks.getNext_id(), "next_statement_id");
+				
+				/*
 				ArrayList<KeyChoice> kcs = ks.getChoices();
 				for (KeyChoice kc : kcs) {
 					Element e_kc = new Element("key_choice");
@@ -2206,7 +2249,7 @@ public class ContentExtract_bees {
 					addElement(e_kc, kc.getStatement(), "statement");
 					addElement(e_kc, kc.getDetermination(), "determination");
 					addElement(e_kc, kc.getNext_id(), "next_statement_id");
-				}
+				}*/
 			}
 						
 			// output xml file

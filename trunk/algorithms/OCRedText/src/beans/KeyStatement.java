@@ -4,12 +4,13 @@ import java.util.ArrayList;
 
 public class KeyStatement { 
 	private String id;
+	private String statement;
+	private String next_id;
+	private String determination;
+	
+	
 	private String from_id;
 	private ArrayList<KeyChoice> choices = new ArrayList<KeyChoice>();
-	
-	//rose: each id has only one statement
-	private String statement = "";
-	private String determination = "";
 	
 	public String getId() {
 		return id;
@@ -35,6 +36,12 @@ public class KeyStatement {
 	}
 	public void setStatement(String statement) {
 		this.statement = statement;
+	}
+	public String getNext_id() {
+		return next_id;
+	}
+	public void setNext_id(String next_id) {
+		this.next_id = next_id;
 	}
 	public String getDetermination() {
 		return determination;
